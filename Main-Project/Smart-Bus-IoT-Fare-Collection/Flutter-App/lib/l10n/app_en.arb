@@ -1,0 +1,73 @@
+{
+  "@@locale": "en",
+
+  "appTitle": "Smart Bus Control Room",
+  "@appTitle": {"description": "App title shown in the OS task switcher and browser tab"},
+
+  "dashboardSubtitle": "IoT Fleet Dashboard / Bengaluru Route - Bus-01",
+
+  "loginTitle": "Smart Bus - Control Room",
+  "loginSubtitle": "Sign in as Admin/Operator or with your Passenger card login.",
+  "emailLabel": "Email",
+  "passwordLabel": "Password",
+  "loginButton": "Login",
+  "loginSuccessMessage": "Login successful — a confirmation email is on its way.",
+  "registerPrompt": "New passenger? Register a card account",
+
+  "statusLabel": "Status",
+  "statusMoving": "Moving",
+  "statusStopped": "Stopped",
+  "onboardLabel": "Onboard",
+  "enteredLabel": "Entered",
+  "exitedLabel": "Exited",
+  "currentStopLabel": "Current Stop",
+  "nextStopLabel": "Next Stop Announcement",
+
+  "startSimulator": "Start Simulator",
+  "stopSimulator": "Stop Simulator",
+  "simulateTap": "Simulate RFID Tap",
+  "rechargeButton": "Recharge",
+  "registerCard": "Register New RFID",
+
+  "busStatusSemantic": "Bus status: {status}, speed {speed} kilometers per hour, currently at {stop}",
+  "@busStatusSemantic": {
+    "description": "Full sentence read aloud by TalkBack/screen readers for the bus status card",
+    "placeholders": {
+      "status": {"type": "String"},
+      "speed": {"type": "String"},
+      "stop": {"type": "String"}
+    }
+  },
+
+  "ttsBoarding": "{name} boarded at {stop}. Fare {amount} rupees deducted.",
+  "@ttsBoarding": {
+    "placeholders": {
+      "name": {"type": "String"},
+      "stop": {"type": "String"},
+      "amount": {"type": "String"}
+    }
+  },
+  "ttsExit": "{name} exited at {stop}.",
+  "@ttsExit": {
+    "placeholders": {
+      "name": {"type": "String"},
+      "stop": {"type": "String"}
+    }
+  },
+  "ttsDenied": "Access denied. Insufficient balance.",
+  "ttsApproachingStop": "Approaching {stop}.",
+  "@ttsApproachingStop": {
+    "placeholders": {
+      "stop": {"type": "String"}
+    }
+  },
+  "ttsRecharge": "Recharge successful. New balance {amount} rupees.",
+  "@ttsRecharge": {
+    "placeholders": {
+      "amount": {"type": "String"}
+    }
+  },
+
+  "languageLabel": "Language",
+  "ttsToggleLabel": "Voice announcements"
+}

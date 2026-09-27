@@ -1,0 +1,4 @@
+This folder is intentionally empty in the zip.
+Running `flutter gen-l10n` (or just `flutter pub get` / `flutter run`,
+since generate: true is set in pubspec.yaml) creates app_localizations.dart
+and app_localizations_en.dart / app_localizations_kn.dart here automatically.

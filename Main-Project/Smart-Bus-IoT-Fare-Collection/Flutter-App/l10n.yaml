@@ -1,0 +1,15 @@
+# Configuration for Flutter's built-in localization code generator.
+# Run automatically on `flutter run` / `flutter build` because
+# `generate: true` is set in pubspec.yaml — or manually with:
+#   flutter gen-l10n
+#
+# This reads every app_XX.arb file in arb-dir and generates a type-safe
+# AppLocalizations class with one method per string key, for every locale.
+
+arb-dir: lib/l10n
+template-arb-file: app_en.arb
+output-localization-file: app_localizations.dart
+output-class: AppLocalizations
+output-dir: lib/l10n/generated
+synthetic-package: false
+nullable-getter: false

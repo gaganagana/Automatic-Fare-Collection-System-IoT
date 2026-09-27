@@ -1,0 +1,44 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    match /users/{userId} {
+      allow read: if signedIn() && (request.auth.uid == userId || isAdmin());
+      allow create: if signedIn() && (request.auth.uid == userId || isAdmin());
+      // Passengers may update profile-safe fields, but cannot change their
+      // role, linked RFID card, or email authorization data themselves.
+      allow update: if isAdmin() || (
+        signedIn() && request.auth.uid == userId &&
+        request.resource.data.role == resource.data.role &&
+        request.resource.data.linkedUid == resource.data.linkedUid &&
+        request.resource.data.email == resource.data.email
+      );
+      allow delete: if isAdmin();
+    }
+
+    match /wallets/{uid} {
+      // Card records are managed by the admin/hardware integration.
+      // Passengers can read only their own linked card.
+      allow read: if isAdmin() ||
+        (signedIn() && resource.data.linkedFirebaseUid == request.auth.uid);
+      allow create, update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /transactions/{transactionId} {
+      allow read: if isAdmin() ||
+        (signedIn() && resource.data.firebaseUid == request.auth.uid);
+      allow create: if isAdmin() ||
+        (signedIn() && request.resource.data.firebaseUid == request.auth.uid);
+      allow update, delete: if isAdmin();
+    }
+  }
+}

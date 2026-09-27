@@ -1,0 +1,185 @@
+import 'models/models.dart';
+
+/// Real Bengaluru route matching the physical hardware's stop list and
+/// DFPlayer track numbers (track = 6 + stop number, per the Arduino
+/// sketch's SD card layout) — kept in sync with esp32/smart_bus_fare_gate.ino
+/// so the dashboard's "Current Stop" always matches what the hardware
+/// announces. x/y are normalised 0..1 coordinates for the schematic
+/// live-map widget (no Google Maps API key needed).
+///
+/// Fare shown here (₹10 flat) is for the DISPLAY-only Route Stops
+/// timeline and the app's own simulated demo wallets. Your physical
+/// hardware computes its own fare as (stops travelled × ₹10) at exit,
+/// using its own on-board card database — the two are intentionally
+/// separate, see SETUP_GUIDE.md section 6 for why.
+final List<RouteStop> kRouteStops = [
+  const RouteStop(
+      id: 'S01',
+      name: 'Kempegowda BS',
+      fare: 0,
+      audioTrack: '007.mp3',
+      x: 0.05,
+      y: 0.88,
+      lat: 12.9767,
+      lng: 77.5713),
+  const RouteStop(
+      id: 'S02',
+      name: 'Maharanis Coll',
+      fare: 10,
+      audioTrack: '008.mp3',
+      x: 0.10,
+      y: 0.78,
+      lat: 12.9721,
+      lng: 77.5789),
+  const RouteStop(
+      id: 'S03',
+      name: 'KR Circle',
+      fare: 10,
+      audioTrack: '009.mp3',
+      x: 0.16,
+      y: 0.79,
+      lat: 12.9757,
+      lng: 77.5926),
+  const RouteStop(
+      id: 'S04',
+      name: 'St Marthas Hosp',
+      fare: 10,
+      audioTrack: '010.mp3',
+      x: 0.21,
+      y: 0.69,
+      lat: 12.9698,
+      lng: 77.5959),
+  const RouteStop(
+      id: 'S05',
+      name: 'Corporation',
+      fare: 10,
+      audioTrack: '011.mp3',
+      x: 0.26,
+      y: 0.70,
+      lat: 12.9634,
+      lng: 77.5885),
+  const RouteStop(
+      id: 'S06',
+      name: 'Poornima Talki',
+      fare: 10,
+      audioTrack: '012.mp3',
+      x: 0.31,
+      y: 0.60,
+      lat: 12.9762,
+      lng: 77.5751),
+  const RouteStop(
+      id: 'S07',
+      name: 'Lalbagh Main G',
+      fare: 10,
+      audioTrack: '013.mp3',
+      x: 0.37,
+      y: 0.62,
+      lat: 12.9507,
+      lng: 77.5848),
+  const RouteStop(
+      id: 'S08',
+      name: 'Lalbagh West G',
+      fare: 10,
+      audioTrack: '014.mp3',
+      x: 0.42,
+      y: 0.51,
+      lat: 12.9542,
+      lng: 77.5806),
+  const RouteStop(
+      id: 'S09',
+      name: 'Ashoka Pillar',
+      fare: 10,
+      audioTrack: '015.mp3',
+      x: 0.47,
+      y: 0.53,
+      lat: 12.9422,
+      lng: 77.5806),
+  const RouteStop(
+      id: 'S10',
+      name: 'Rani Sarala HS',
+      fare: 10,
+      audioTrack: '016.mp3',
+      x: 0.53,
+      y: 0.42,
+      lat: 12.935,
+      lng: 77.583),
+  const RouteStop(
+      id: 'S11',
+      name: '3rd Blk Jayanag',
+      fare: 10,
+      audioTrack: '017.mp3',
+      x: 0.58,
+      y: 0.44,
+      lat: 12.9279,
+      lng: 77.583),
+  const RouteStop(
+      id: 'S12',
+      name: '4th Blk Jayanag',
+      fare: 10,
+      audioTrack: '018.mp3',
+      x: 0.63,
+      y: 0.33,
+      lat: 12.9308,
+      lng: 77.5838),
+  const RouteStop(
+      id: 'S13',
+      name: 'Jayanagar Chrch',
+      fare: 10,
+      audioTrack: '019.mp3',
+      x: 0.69,
+      y: 0.35,
+      lat: 12.925,
+      lng: 77.59),
+  const RouteStop(
+      id: 'S14',
+      name: 'Sanjay Gandhi H',
+      fare: 10,
+      audioTrack: '020.mp3',
+      x: 0.74,
+      y: 0.25,
+      lat: 12.928,
+      lng: 77.595),
+  const RouteStop(
+      id: 'S15',
+      name: 'Carmel Convent',
+      fare: 10,
+      audioTrack: '021.mp3',
+      x: 0.79,
+      y: 0.26,
+      lat: 12.935,
+      lng: 77.595),
+  const RouteStop(
+      id: 'S16',
+      name: 'Pump House',
+      fare: 10,
+      audioTrack: '022.mp3',
+      x: 0.84,
+      y: 0.16,
+      lat: 12.915,
+      lng: 77.598),
+  const RouteStop(
+      id: 'S17',
+      name: 'East End Jayang',
+      fare: 10,
+      audioTrack: '023.mp3',
+      x: 0.90,
+      y: 0.17,
+      lat: 12.92,
+      lng: 77.605),
+  const RouteStop(
+      id: 'S18',
+      name: '16th Main BTM',
+      fare: 10,
+      audioTrack: '024.mp3',
+      x: 0.95,
+      y: 0.07,
+      lat: 12.9165,
+      lng: 77.6101),
+];
+
+List<RfidWallet> buildInitialWallets() => [
+      RfidWallet(uid: 'CAFEBABE', holderName: 'Meera Nair', balance: 320),
+      RfidWallet(uid: 'A1B2C3D4', holderName: 'Rohan Kumar', balance: 180),
+      RfidWallet(uid: '9F8E7D6C', holderName: 'Priya Iyer', balance: 60),
+      RfidWallet(uid: '11AA22BB', holderName: 'Arjun Rao', balance: 250),
+    ];
