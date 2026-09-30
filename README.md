@@ -2,7 +2,7 @@
 
 > **MCA Academic Project Repository**  
 > **Student:** Gagana C P  
-> **Institution:** Community Institute of Management Studies (CIMS), Bengaluru  
+> **Institution:** Community Institute of Management Studies (CIMS), Bengaluru 
 > **Affiliated to:** Bengaluru City University  
 
 This repository contains two academic projects I developed during my Master of Computer Applications (MCA) program:
