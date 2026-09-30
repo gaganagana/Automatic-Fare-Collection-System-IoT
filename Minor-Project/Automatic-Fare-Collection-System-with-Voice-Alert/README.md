@@ -1,119 +1,90 @@
 # Automatic Fare Collection System with Voice Alert
 
-[![Platform](https://img.shields.io/badge/Platform-Arduino%20UNO-00979D?logo=arduino&logoColor=white)](https://arduino.cc)
-[![Language](https://img.shields.io/badge/Language-C%2B%2B%20%2F%20Embedded%20C-blue)](https://isocpp.org)
-[![RFID](https://img.shields.io/badge/RFID-MFRC522%2013.56MHz-orange)](#hardware-components)
-[![Audio](https://img.shields.io/badge/Audio-DFPlayer%20Mini-yellow)](#hardware-components)
-
-> **MCA Minor Project Report & Implementation**  
-> **Student:** Gagana C P (Reg No. P18MC22S0012)  
-> **Department:** Master of Computer Applications  
-> **Institution:** Community Institute of Management Studies, Bengaluru (Affiliated to Bengaluru City University)
+> **MCA Minor Project**  
+> **Student:** Gagana C P  
+> **Institution:** Community Institute of Management Studies, Bengaluru (Affiliated to Bengaluru City University)  
 
 ---
 
-## 1. Problem Statement & Objectives
+## About This Project
 
-Traditional public transit fare collection relies heavily on physical cash exchange and manual paper ticketing handled by onboard conductors. This process causes severe boarding bottlenecks, revenue leakage, counterfeit ticketing, and disputes over loose coin change during peak transit hours.
+I built this project as my MCA minor project. It is a standalone physical hardware prototype designed to automate bus ticketing using contactless RFID smart cards, audio voice prompts, and motorized barrier gates.
 
-### Objectives
-1. **Automate Fare Collection:** Implement contactless 13.56 MHz RFID smart card scanning for instantaneous commuter entry and exit.
-2. **Dynamic Stage-Based Fare Calculation:** Compute fares automatically based on traveled distance between boarding stop and destination stop ($Fare = N 	imes ₹10$, minimum $₹10$).
-3. **Turnstile Barrier Gate Automation:** Control physical entry and exit barrier arms using SG90 micro-servos to physically prevent unpaid boarding.
-4. **Instant Audio Annunciation:** Provide real-time voice feedback using the DFPlayer Mini module to guide visually impaired commuters and improve commuter confidence.
-5. **Clear Visual Status:** Display account balance, stage numbers, and error alerts on a high-contrast 16x2 I2C LCD screen.
+In local public buses, conductors have to manually collect cash, issue small paper tickets, and hand back loose coins. During crowded peak hours, this causes delays and disputes. I wanted to build a working prototype to test how RFID cards and voice alerts can handle ticketing without cash.
 
 ---
 
-## 2. Hardware Architecture & Components
+## Hardware Components Used
 
-| Component | Model / Spec | Purpose in System |
-| :--- | :--- | :--- |
-| **Microcontroller** | Arduino UNO (ATmega328P) | Central processing unit executing fare logic, card memory checking, and peripheral timing. |
-| **RFID Reader** | RC522 (13.56 MHz SPI) | Reads 4-byte / 7-byte Unique Identifiers (UID) from commuter RFID cards and keyfobs. |
-| **Audio Annunciator**| DFPlayer Mini + 3W Speaker | Decodes FAT16/FAT32 MP3 audio tracks triggered over UART (SoftwareSerial). |
-| **Visual Display** | 16x2 Character LCD with I2C (PCF8574)| Displays welcoming text, commuter name, stop number, fare debited, and remaining balance. |
-| **Gate Barriers** | 2x SG90 Micro Servos | Actuates mechanical turnstile arms (0° closed, 90° open for 3 seconds upon valid tap). |
-| **Motor Drive** | L293D Dual H-Bridge + DC Motor | Simulates bus transit motion between simulated bus stops. |
-| **Push Buttons** | 2x Tactile Buttons (A0, A1) | Triggers bus START movement and STOP stage incrementation. |
+| Component | Purpose in the Project |
+| :--- | :--- |
+| **Arduino UNO (ATmega328P)** | Central microcontroller running the ticketing logic and controlling all peripherals. |
+| **MFRC522 RFID Reader (13.56 MHz)** | Reads commuter card UIDs over SPI when tapped at the entry or exit. |
+| **DFPlayer Mini + 3W Speaker** | Plays recorded voice prompts from a micro-SD card (welcome, exit, low balance). |
+| **16x2 I2C LCD Display** | Shows passenger balance, stop numbers, fare debited, and error messages. |
+| **2x SG90 Servo Motors** | Open and close the physical entry and exit barrier turnstiles (0° closed, 90° open). |
+| **L293D Motor Driver & DC Motor** | Simulates the bus moving between stops during testing. |
+| **Push Buttons (Pins A0 & A1)** | Used as START and STOP inputs to advance bus stops during the demonstration. |
 
 ---
 
-## 3. Circuit Wiring & Pinout
+## How It Works
+
+1. **Boarding at Entry:**
+   * The passenger taps their RFID card on the reader.
+   * If the card has at least ₹10, the entry servo opens the gate (rotates to 90°), the DFPlayer announces "Welcome aboard", the 16x2 LCD shows the balance, and the Arduino records the entry stop.
+   * If the balance is under ₹10, the gate stays closed (0°) and the speaker announces "Insufficient balance".
+2. **Deboarding at Exit:**
+   * The passenger taps their card at the exit reader.
+   * The Arduino calculates the number of stages travelled:
+     $$\text{Fare} = \text{Stages Travelled} \times ₹10 \quad (\text{Minimum } ₹10)$$
+   * The fare is deducted, the LCD displays the new balance, the DFPlayer plays "Exit recorded, thank you", and the exit servo opens the barrier.
+
+---
+
+## Hardware Pin Connections
 
 ```text
-Arduino Pin       Peripheral Pin       Function
-─────────────────────────────────────────────────────────
-3.3V              RFID VCC             3.3V Power (Do NOT connect to 5V!)
-GND               System Ground        Common system ground
-D2                DFPlayer RX          Audio SoftwareSerial TX (via 1kΩ)
-D3                DFPlayer TX          Audio SoftwareSerial RX
-D4                Servo 1 (Entry Gate) PWM signal (0° to 90°)
-D5                L293D IN1            DC Motor forward direction
-D6                L293D IN2            DC Motor stop / reverse
-D9                RFID RST             SPI Reset
-D10               RFID SDA / SS        SPI Chip Select
-D11               RFID MOSI            SPI Master Out Slave In
-D12               RFID MISO            SPI Master In Slave Out
-D13               RFID SCK             SPI Serial Clock
-A0                START Button         Pull-up input (Active LOW)
-A1                STOP Button          Pull-up input (Active LOW)
-A2                Servo 2 (Exit Gate)  PWM signal (0° to 90°)
-A4                16x2 LCD SDA         I2C Serial Data
-A5                16x2 LCD SCL         I2C Serial Clock
+Arduino Pin       Connected Device       Function
+─────────────────────────────────────────────────────────────────────────────
+3.3V              MFRC522 VCC            Power (Must be 3.3V, not 5V)
+GND               System Ground          Common ground rail
+D2                DFPlayer RX            Audio Serial TX (through 1kΩ resistor)
+D3                DFPlayer TX            Audio Serial RX
+D4                Servo 1 (Entry Gate)   PWM gate control (0° to 90°)
+D5                L293D IN1              DC Motor forward
+D6                L293D IN2              DC Motor stop / reverse
+D9                MFRC522 RST            SPI Reset
+D10               MFRC522 SDA / SS       SPI Slave Select
+D11               MFRC522 MOSI           SPI Master Out Slave In
+D12               MFRC522 MISO           SPI Master In Slave Out
+D13               MFRC522 SCK            SPI Clock
+A0                START Button           Button to start bus simulation
+A1                STOP Button            Button to advance bus stop
+A2                Servo 2 (Exit Gate)    PWM gate control (0° to 90°)
+A4                16x2 LCD SDA           I2C Data
+A5                16x2 LCD SCL           I2C Clock
 ```
 
 ---
 
-## 4. Ticketing & Fare Calculation Workflow
+## Photos of the Prototype
 
-```mermaid
-sequenceDiagram
-    autonumber
-    actor Commuter
-    participant RFID as RFID Reader (RC522)
-    participant UNO as Arduino UNO
-    participant Audio as DFPlayer Mini
-    participant LCD as 16x2 LCD
-    participant Gate as Servo Turnstile
-
-    Note over Commuter, Gate: --- BOARDING AT STAGE X ---
-    Commuter->>RFID: Taps RFID Smart Card
-    RFID->>UNO: Transmits 4-byte Card UID
-    UNO->>UNO: Checks Card Registration & Balance
-    alt Card Balance >= ₹10
-        UNO->>LCD: "Valid Card! Entry Allowed"
-        UNO->>Audio: Play Track 003 ("Welcome Aboard")
-        UNO->>Gate: Rotate 90° (Barrier Open)
-        UNO->>UNO: Record Entry Stage = Current Stop
-        Gate-->>UNO: Wait 3000ms -> Return to 0° (Closed)
-    else Balance < ₹10
-        UNO->>LCD: "Low Balance! Recharge Required"
-        UNO->>Audio: Play Track 006 ("Insufficient Balance")
-        Note over Gate: Gate remains CLOSED (0°)
-    end
-
-    Note over Commuter, Gate: --- DEBOARDING AT STAGE Y ---
-    Commuter->>RFID: Taps RFID Smart Card at Exit
-    RFID->>UNO: Transmits Card UID
-    UNO->>UNO: Calculate Traveled Distance = |Stage Y - Stage X|
-    UNO->>UNO: Deduct Fare = Distance * ₹10 (Min ₹10)
-    UNO->>LCD: "Fare: ₹XX | Bal: ₹YY"
-    UNO->>Audio: Play Track 004 ("Exit Recorded. Thank you")
-    UNO->>Gate: Open Exit Turnstile (90°)
-```
-
----
-
-## 5. Physical Prototype Gallery
-
-| Hardware Setup | Dual Barrier Turnstiles | Working Module Overview |
+| Hardware Setup | Turnstile Gate Assembly | Working Module |
 | :---: | :---: | :---: |
-| ![Hardware Setup](Screenshots/01_Physical_Hardware_Setup.jpg) | ![Dual Turnstiles](Screenshots/02_Dual_Turnstiles_and_RFID.jpg) | ![Working Module](Screenshots/03_Working_Module_Overview.jpg) |
-| *Breadboard wiring, Arduino UNO, and power rail* | *Servo gate barrier with RFID scanning zone* | *Integrated test rig displaying dynamic LCD status* |
+| ![Hardware Setup](Screenshots/01_Physical_Hardware_Setup.jpg) | ![Turnstile Assembly](Screenshots/02_Dual_Turnstiles_and_RFID.jpg) | ![Working Module](Screenshots/03_Working_Module_Overview.jpg) |
+| *Arduino UNO, breadboard, and wiring* | *Servo barrier gate and RFID card reader* | *LCD display and audio testing* |
 
 ---
 
-## 6. Official Academic Documentation
+## What I Learned
 
-The complete academic thesis report submitted in fulfillment of the MCA degree is preserved in [`Documentation/MCA_Minor_Project_Report.pdf`](Documentation/MCA_Minor_Project_Report.pdf).
+* How to interface multiple SPI and I2C sensors with an Arduino UNO.
+* Managing servo angles and timing with `millis()` so audio playback doesn't freeze the card scanner.
+* Using internal pull-up resistors on Arduino analog pins (A0 and A1) to connect simple push buttons.
+
+---
+
+## Project Documentation
+
+The complete academic report submitted for this minor project is available in [`Documentation/MCA_Minor_Project_Report.pdf`](Documentation/MCA_Minor_Project_Report.pdf).
