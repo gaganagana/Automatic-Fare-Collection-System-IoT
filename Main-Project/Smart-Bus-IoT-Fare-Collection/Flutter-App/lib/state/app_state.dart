@@ -1,15 +1,21 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:razorpay_flutter/razorpay_flutter.dart';
 
 import '../l10n/generated/app_localizations.dart';
+import '../l10n/route_localizations.dart';
 import '../mock_data.dart';
 import '../models/models.dart';
+import '../services/ai_chat_service.dart';
 import '../services/auth_service.dart';
 import '../services/email_service.dart';
+import '../services/payment_service.dart';
 import '../services/telemetry_server.dart';
 import '../services/tts_service.dart';
 
@@ -47,26 +53,69 @@ class AppState extends ChangeNotifier {
   /// simulator tick) speak in whichever language the user last picked.
   AppLocalizations get _l10n => lookupAppLocalizations(locale);
 
+  /// Returns the display name of a route stop in the currently selected
+  /// language. Internal/Firebase/hardware data keeps the canonical name.
+  String localizedStopName(String? canonicalName) {
+    if (canonicalName == null || canonicalName.isEmpty || canonicalName == '-') {
+      return canonicalName ?? '';
+    }
+    return RouteLocalizations.name(canonicalName, locale);
+  }
+
   AppState() {
     telemetryServer = TelemetryServer(
       onTap: _handleHardwareTap,
       onHardwareEvent: _handleHardwareEvent,
       onStopUpdate: _handleStopUpdate,
     );
-    _authSub = AuthService.authStateChanges.listen(_onFirebaseUserChanged);
+    //_authSub = AuthService.authStateChanges.listen(_onFirebaseUserChanged);
+    unawaited(_initializeAuthentication());
+
+    unawaited(_loadRealWallets());
     TelemetryServer.localIpAddresses().then((ips) {
       localIps = ips;
       notifyListeners();
     });
     tts.setLanguage(locale.languageCode);
-    // Start listening for ESP32 taps immediately — previously this only
-    // started when "Start Simulator" was pressed, which was a common
-    // source of "the ESP32 can't connect" confusion during setup/testing.
+    enteredCount = 0;
+    exitedCount = 0;
+    onboardCount = 0;
     startTelemetryServer();
+    _startBusStatusRealtimeListener();
+  }
+  // ============================================================
+// AUTHENTICATION INITIALIZATION
+// ============================================================
+
+  Future<void> _initializeAuthentication() async {
+    // Always start the application at the Login screen.
+    // Firebase normally restores a previous session automatically, but for
+    // this college-project prototype we intentionally clear that session on
+    // every fresh app launch so the user must log in again.
+    authLoading = true;
+    currentUser = null;
+    notifyListeners();
+
+    try {
+      await AuthService.signOut();
+    } catch (e) {
+      debugPrint('Startup sign-out error: $e');
+    }
+
+    _authSub = AuthService.authStateChanges.listen(
+      _onFirebaseUserChanged,
+    );
+
+    currentUser = null;
+    authLoading = false;
+    notifyListeners();
   }
 
   Future<void> _onFirebaseUserChanged(fb.User? firebaseUser) async {
     if (firebaseUser == null) {
+      _stopWalletRealtimeListener();
+      _stopTransactionRealtimeListener();
+      _stopBusStatusRealtimeListener();
       currentUser = null;
       authLoading = false;
       notifyListeners();
@@ -75,7 +124,434 @@ class AppState extends ChangeNotifier {
     final profile = await AuthService.loadProfileForCurrentUser();
     currentUser = profile;
     authLoading = false;
+    await _loadRealWallets();
+    if (profile?.role == UserRole.admin) {
+      await _loadPassengers();
+      _startWalletRealtimeListener();
+    } else {
+      passengers.clear();
+      _startWalletRealtimeListener();
+    }
+    _startTransactionRealtimeListener();
+    _startBusStatusRealtimeListener();
+    _startNodeMcuPolling();
     notifyListeners();
+
+    if (profile != null && profile.role == UserRole.passenger && profile.linkedUid != null) {
+      await _loadWalletBalanceFromFirestore(profile.linkedUid!);
+    }
+  }
+
+  void _startWalletRealtimeListener() {
+    _walletsSub?.cancel();
+    if (currentUser?.role == UserRole.admin) {
+      _walletsSub = _walletsCollection.snapshots().listen((snapshot) {
+        for (final doc in snapshot.docs) {
+          final data = doc.data();
+          if (data['isDemo'] == true) continue;
+          final uid = (data['uid'] ?? doc.id).toString().toUpperCase();
+          final name = (data['holderName'] ?? 'Unassigned').toString();
+          double balance = (data['balance'] as num?)?.toDouble() ?? 0;
+          if (uid == '5402BBA9' && balance > 10.0) {
+            balance = 10.0;
+            _walletsCollection.doc('5402BBA9').set({'balance': 10.0}, SetOptions(merge: true));
+          }
+          final active = data['active'] == null
+              ? (uid == '21DB3E0A' ? false : true)
+              : (data['active'] == true);
+          final existing = wallets.indexWhere((w) => w.uid == uid);
+          if (existing == -1) {
+            wallets.add(RfidWallet(
+              uid: uid, holderName: name, balance: balance, active: active,
+              onboard: data['onboard'] == true,
+              entryStop: data['entryStop']?.toString(),
+              recentExit: data['recentExit']?.toString(),
+              lastFare: (data['lastFare'] as num?)?.toDouble(),
+              transactionTime: _timestampToDate(data['transactionTime']),
+            ));
+          } else {
+            wallets[existing].holderName = name;
+            wallets[existing].balance = balance;
+            wallets[existing].active = active;
+            wallets[existing].onboard = data['onboard'] == true;
+            wallets[existing].entryStop = data['entryStop']?.toString();
+            wallets[existing].recentExit = data['recentExit']?.toString();
+            wallets[existing].lastFare = (data['lastFare'] as num?)?.toDouble();
+            wallets[existing].transactionTime = _timestampToDate(data['transactionTime']);
+          }
+        }
+        notifyListeners();
+      }, onError: (Object error, StackTrace stack) {
+        debugPrint('Realtime RFID wallet listener error: $error');
+      });
+    } else if (currentUser?.role == UserRole.passenger && currentUser?.linkedUid != null) {
+      final uid = currentUser!.linkedUid!.trim().toUpperCase();
+      _walletsSub = _walletsCollection.doc(uid).snapshots().listen((doc) {
+        if (!doc.exists) return;
+        final data = doc.data();
+        if (data == null) return;
+        final name = (data['holderName'] ?? currentUser!.username).toString();
+        double balance = (data['balance'] as num?)?.toDouble() ?? 0;
+        if (uid == '5402BBA9' && balance > 10.0) {
+          balance = 10.0;
+          _walletsCollection.doc('5402BBA9').set({'balance': 10.0}, SetOptions(merge: true));
+        }
+        final active = data['active'] != false;
+        final existing = wallets.indexWhere((w) => w.uid == uid);
+        if (existing == -1) {
+          wallets.add(RfidWallet(
+            uid: uid, holderName: name, balance: balance, active: active,
+            onboard: data['onboard'] == true,
+            entryStop: data['entryStop']?.toString(),
+            recentExit: data['recentExit']?.toString(),
+            lastFare: (data['lastFare'] as num?)?.toDouble(),
+            transactionTime: _timestampToDate(data['transactionTime']),
+          ));
+        } else {
+          wallets[existing].holderName = name;
+          wallets[existing].balance = balance;
+          wallets[existing].active = active;
+          wallets[existing].onboard = data['onboard'] == true;
+          wallets[existing].entryStop = data['entryStop']?.toString();
+          wallets[existing].recentExit = data['recentExit']?.toString();
+          wallets[existing].lastFare = (data['lastFare'] as num?)?.toDouble();
+          wallets[existing].transactionTime = _timestampToDate(data['transactionTime']);
+        }
+        notifyListeners();
+      }, onError: (Object error, StackTrace stack) {
+        debugPrint('Passenger realtime RFID wallet listener error: $error');
+      });
+    }
+  }
+
+  void _stopWalletRealtimeListener() {
+    _walletsSub?.cancel();
+    _walletsSub = null;
+  }
+
+  void _startTransactionRealtimeListener() {
+    _transactionsSub?.cancel();
+    final passengerUid = currentUser?.linkedUid?.trim().toUpperCase();
+    final query = currentUser?.role == UserRole.admin
+        ? FirebaseFirestore.instance.collection('transactions')
+        : (passengerUid != null && passengerUid.isNotEmpty
+            ? FirebaseFirestore.instance
+                .collection('transactions')
+                .where('uid', isEqualTo: passengerUid)
+            : FirebaseFirestore.instance
+                .collection('transactions')
+                .where('firebaseUid', isEqualTo: currentUser?.uid));
+
+    _transactionsSub = query.snapshots().listen((snapshot) {
+      final loaded = <FareTransaction>[];
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+        final ts = data['transactionTime'] ?? data['createdAt'];
+        final time = _timestampToDate(ts) ?? DateTime.now();
+        final typeText = (data['type'] ?? '').toString().toUpperCase();
+        final type = switch (typeText) {
+          'BOARDING' || 'ENTRY' => TxType.boarding,
+          'EXIT' => TxType.exit,
+          'RECHARGE' => TxType.recharge,
+          _ => TxType.denied,
+        };
+        loaded.add(FareTransaction(
+          time: time,
+          uid: (data['uid'] ?? doc.id).toString().toUpperCase(),
+          holder: (data['cardHolder'] ?? data['holder'] ?? 'Passenger').toString(),
+          type: type,
+          stop: (data['stop'] ?? data['exitStop'] ?? '-').toString(),
+          amount: (data['amount'] as num?)?.toDouble() ?? -((data['fare'] as num?)?.toDouble() ?? 0),
+          balanceAfter: (data['balanceAfter'] as num?)?.toDouble() ?? 0,
+          entryStop: data['entryStop']?.toString(),
+          exitStop: data['exitStop']?.toString(),
+          stopsTravelled: (data['stopsTravelled'] as num?)?.toInt(),
+          reason: data['reason']?.toString(),
+        ));
+      }
+      loaded.sort((a, b) => b.time.compareTo(a.time));
+      final merged = <FareTransaction>[...loaded];
+      for (final prototype in buildPrototypeTransactions()) {
+        final duplicate = merged.any((tx) =>
+        tx.uid == prototype.uid &&
+            tx.type == prototype.type &&
+            tx.time == prototype.time &&
+            tx.stop == prototype.stop);
+        if (!duplicate) merged.add(prototype);
+      }
+      merged.sort((a, b) => b.time.compareTo(a.time));
+      transactions
+        ..clear()
+        ..addAll(merged.take(200));
+      notifyListeners();
+    }, onError: (Object error, StackTrace stack) {
+      debugPrint('Realtime transaction listener error: $error');
+    });
+  }
+
+  void _stopTransactionRealtimeListener() {
+    _transactionsSub?.cancel();
+    _transactionsSub = null;
+  }
+
+  void _startBusStatusRealtimeListener() {
+    _busStatusSub?.cancel();
+    _busStatusSub = FirebaseFirestore.instance
+        .collection('bus_status')
+        .doc('current')
+        .snapshots()
+        .listen((doc) {
+      if (!doc.exists) return;
+      final data = doc.data();
+      if (data == null) return;
+      final idx = (data['currentStopIndex'] as num?)?.toInt();
+      final isMoving = data['moving'] == true;
+      final speed = (data['speedKmh'] as num?)?.toDouble() ?? (isMoving ? 35.0 : 0.0);
+      if (idx != null && idx >= 0 && idx < stops.length) {
+        currentStopIndex = idx;
+      }
+      simulatorRunning = isMoving;
+      speedKmh = speed;
+      notifyListeners();
+    }, onError: (Object error, StackTrace stack) {
+      debugPrint('Bus status realtime listener error: $error');
+    });
+  }
+
+  void _stopBusStatusRealtimeListener() {
+    _busStatusSub?.cancel();
+    _busStatusSub = null;
+  }
+
+  Future<void> _syncBusStatusToFirestore() async {
+    try {
+      await FirebaseFirestore.instance.collection('bus_status').doc('current').set({
+        'currentStopIndex': currentStopIndex,
+        'currentStopName': currentStop.name,
+        'nextStopName': nextStop.name,
+        'moving': simulatorRunning,
+        'speedKmh': speedKmh,
+        'lastUpdated': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Could not sync bus status to Firestore: $e');
+    }
+  }
+
+  DateTime? _timestampToDate(dynamic value) {
+    if (value is Timestamp) return value.toDate();
+    return DateTime.tryParse(value?.toString() ?? '');
+  }
+
+  Future<void> _loadRealWallets() async {
+    try {
+      if (currentUser?.role == UserRole.passenger && currentUser?.linkedUid != null) {
+        final uid = currentUser!.linkedUid!.toUpperCase();
+        final doc = await _walletsCollection.doc(uid).get();
+        if (doc.exists) {
+          final data = doc.data()!;
+          double balance = (data['balance'] as num?)?.toDouble() ?? 0;
+          if (uid == '5402BBA9' && balance > 10.0) {
+            balance = 10.0;
+            _walletsCollection.doc('5402BBA9').set({'balance': 10.0}, SetOptions(merge: true));
+          }
+          final name = (data['holderName'] ?? currentUser!.username).toString();
+          final active = data['active'] != false;
+          final existing = wallets.indexWhere((w) => w.uid == uid);
+          if (existing == -1) {
+            wallets.add(RfidWallet(
+              uid: uid, holderName: name, balance: balance, active: active,
+              onboard: data['onboard'] == true,
+              entryStop: data['entryStop']?.toString(),
+              recentExit: data['recentExit']?.toString(),
+              lastFare: (data['lastFare'] as num?)?.toDouble(),
+              transactionTime: _timestampToDate(data['transactionTime']),
+            ));
+          } else {
+            wallets[existing].holderName = name;
+            wallets[existing].balance = balance;
+            wallets[existing].active = active;
+            wallets[existing].onboard = data['onboard'] == true;
+            wallets[existing].entryStop = data['entryStop']?.toString();
+            wallets[existing].recentExit = data['recentExit']?.toString();
+            wallets[existing].lastFare = (data['lastFare'] as num?)?.toDouble();
+            wallets[existing].transactionTime = _timestampToDate(data['transactionTime']);
+          }
+        } else {
+          final existing = wallets.indexWhere((w) => w.uid == uid);
+          if (existing == -1) {
+            wallets.add(RfidWallet(
+              uid: uid,
+              holderName: currentUser!.username,
+              balance: uid == '5402BBA9' ? 10.0 : 200.0,
+              active: true,
+              isDemo: false,
+            ));
+          }
+        }
+      } else if (currentUser?.role == UserRole.admin) {
+        final snapshot = await _walletsCollection.get();
+        for (final doc in snapshot.docs) {
+          final data = doc.data();
+          if (data['isDemo'] == true) continue;
+          final uid = (data['uid'] ?? doc.id).toString().toUpperCase();
+          final name = (data['holderName'] ?? 'Unassigned').toString();
+          double balance = (data['balance'] as num?)?.toDouble() ?? 0;
+          if (uid == '5402BBA9' && balance > 10.0) {
+            balance = 10.0;
+            _walletsCollection.doc('5402BBA9').set({'balance': 10.0}, SetOptions(merge: true));
+          }
+          final active = data['active'] == null
+              ? (uid == '21DB3E0A' ? false : true)
+              : (data['active'] == true);
+          final existing = wallets.indexWhere((w) => w.uid == uid);
+          if (existing == -1) {
+            wallets.add(RfidWallet(
+              uid: uid, holderName: name, balance: balance, active: active,
+              onboard: data['onboard'] == true,
+              entryStop: data['entryStop']?.toString(),
+              recentExit: data['recentExit']?.toString(),
+              lastFare: (data['lastFare'] as num?)?.toDouble(),
+              transactionTime: _timestampToDate(data['transactionTime']),
+            ));
+          } else {
+            wallets[existing].holderName = name;
+            wallets[existing].balance = balance;
+            wallets[existing].active = active;
+            wallets[existing].onboard = data['onboard'] == true;
+            wallets[existing].entryStop = data['entryStop']?.toString();
+            wallets[existing].recentExit = data['recentExit']?.toString();
+            wallets[existing].lastFare = (data['lastFare'] as num?)?.toDouble();
+            wallets[existing].transactionTime = _timestampToDate(data['transactionTime']);
+          }
+        }
+      }
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Could not load registered RFID cards: $e');
+    }
+  }
+
+  Future<void> _loadPassengers() async {
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .where('role', isEqualTo: 'passenger')
+          .get();
+      passengers
+        ..clear()
+        ..addAll(snapshot.docs.map((doc) {
+          final data = doc.data();
+          return UserAccount(
+            uid: doc.id,
+            username: (data['username'] ?? '').toString(),
+            email: (data['email'] ?? '').toString(),
+            role: UserRole.passenger,
+            linkedUid: data['linkedUid']?.toString().toUpperCase(),
+          );
+        }));
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Could not load passengers: $e');
+    }
+  }
+
+  Future<String?> addPassenger({
+    required String username,
+    required String email,
+    required String password,
+    required String linkedUid,
+  }) async {
+    final uid = linkedUid.trim().toUpperCase();
+    if (uid.isEmpty) return 'RFID Card UID is required.';
+    if (passengers.any((p) => p.linkedUid == uid)) return 'That RFID card is already assigned to a passenger.';
+    try {
+      final created = await AuthService.createPassengerAsAdmin(
+        email: email.trim(),
+        password: password,
+        username: username.trim(),
+        linkedUid: uid,
+      );
+      
+      final existingIdx = wallets.indexWhere((w) => w.uid == uid);
+      if (existingIdx == -1) {
+        wallets.add(RfidWallet(
+          uid: uid,
+          holderName: username.trim(),
+          balance: 200,
+          active: true,
+          isDemo: false,
+        ));
+      } else {
+        wallets[existingIdx].holderName = username.trim();
+        wallets[existingIdx].active = true;
+      }
+
+      await _walletsCollection.doc(uid).set({
+        'uid': uid,
+        'holderName': username.trim(),
+        'balance': 200,
+        'active': true,
+        'linkedFirebaseUid': created.uid,
+        'isDemo': false,
+        'lastUpdated': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      if (esp32Ip.isNotEmpty) {
+        try {
+          http.get(
+            Uri.parse('http://$esp32Ip/register?uid=$uid&name=${Uri.encodeComponent(username.trim())}&balance=200'),
+          ).timeout(const Duration(seconds: 3)).catchError((_) => http.Response('', 500));
+        } catch (_) {}
+      }
+
+      await _loadPassengers();
+      await _loadRealWallets();
+      return null;
+    } on fb.FirebaseAuthException catch (e) {
+      return _readableAuthError(e.code);
+    } catch (e) {
+      return 'Could not add passenger: $e';
+    }
+  }
+
+  Future<String?> deletePassenger(UserAccount passenger) async {
+    try {
+      await FirebaseFirestore.instance.collection('users').doc(passenger.uid).delete();
+      if (passenger.linkedUid != null) {
+        await _walletsCollection.doc(passenger.linkedUid!).set({
+          'linkedFirebaseUid': FieldValue.delete(),
+        }, SetOptions(merge: true));
+      }
+      passengers.removeWhere((p) => p.uid == passenger.uid);
+      notifyListeners();
+      return null;
+    } catch (e) {
+      return 'Could not remove passenger: $e';
+    }
+  }
+
+  Future<void> _loadWalletBalanceFromFirestore(String uid) async {
+    try {
+      final doc = await _walletsCollection.doc(uid).get();
+      if (!doc.exists) return;
+      double? savedBalance = (doc.data()?['balance'] as num?)?.toDouble();
+      if (savedBalance == null) return;
+      if (uid == '5402BBA9' && savedBalance > 10.0) {
+        savedBalance = 10.0;
+        _walletsCollection.doc('5402BBA9').set({'balance': 10.0}, SetOptions(merge: true));
+      }
+      final idx = wallets.indexWhere((w) => w.uid == uid);
+      if (idx == -1) {
+        wallets.add(RfidWallet(uid: uid, holderName: (doc.data()?['holderName'] ?? 'Passenger').toString(), balance: savedBalance, active: doc.data()?['active'] != false));
+      } else {
+        wallets[idx].balance = savedBalance;
+      }
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Could not load saved wallet balance from Firestore: $e');
+      // Non-fatal — the app continues with the in-memory demo balance.
+    }
   }
 
   // ---- Route / simulator ---------------------------------------------------
@@ -94,13 +570,27 @@ class AppState extends ChangeNotifier {
 
   // ---- RFID wallets & feed --------------------------------------------------
   final List<RfidWallet> wallets = buildInitialWallets();
-  final List<FareTransaction> transactions = [];
+  final List<UserAccount> passengers = [];
+  final List<FareTransaction> transactions = buildPrototypeTransactions();
+  final PaymentService _paymentService = PaymentService();
+  final CollectionReference<Map<String, dynamic>> _walletsCollection =
+  FirebaseFirestore.instance.collection('wallets');
+  StreamSubscription? _walletsSub;
+  StreamSubscription? _transactionsSub;
+  StreamSubscription? _busStatusSub;
 
   // ---- Telemetry / ESP32 link -----------------------------------------------
   TelemetryStatus telemetry = const TelemetryStatus();
-  String esp32Ip = ''; // e.g. 192.168.1.42 — set from the settings field
+  String esp32Ip = '192.168.1.24'; // default NodeMCU IP on Airtel_Khan
   late final TelemetryServer telemetryServer;
   int serverPort = 8080;
+  bool hasHardwareConnected = false;
+  bool hasHardwareStopReceived = false;
+
+  bool get isNodeMcuOnline =>
+      telemetry.esp32Connected &&
+      (telemetry.lastPing != null &&
+          DateTime.now().difference(telemetry.lastPing!).inSeconds < 15);
 
   // ---- SMS-style slide banners -----------------------------------------------
   final List<String> _bannerQueue = [];
@@ -108,6 +598,78 @@ class AppState extends ChangeNotifier {
 
   RouteStop get currentStop => stops[currentStopIndex];
   RouteStop get nextStop => stops[min(currentStopIndex + 1, stops.length - 1)];
+
+  String get currentStopDisplay {
+    if (!hasHardwareStopReceived && !isNodeMcuOnline && !simulatorRunning) {
+      return '—';
+    }
+    return localizedStopName(currentStop.name);
+  }
+
+  String get nextStopDisplay {
+    if (!hasHardwareStopReceived && !isNodeMcuOnline && !simulatorRunning) {
+      return '—';
+    }
+    return localizedStopName(nextStop.name);
+  }
+
+
+
+  // ======================== USER NOTIFICATIONS ===============================
+  /// Notifications shown on the passenger dashboard/support panel.
+  /// Only transactions belonging to the currently signed-in passenger's
+  /// linked RFID card are returned.
+  List<FareTransaction> get currentUserNotifications {
+    final linkedUid = currentUser?.linkedUid?.trim().toUpperCase();
+
+    if (linkedUid == null || linkedUid.isEmpty) {
+      return <FareTransaction>[];
+    }
+
+    final items = transactions
+        .where((tx) => tx.uid.trim().toUpperCase() == linkedUid)
+        .toList();
+
+    items.sort((a, b) => b.time.compareTo(a.time));
+    return items;
+  }
+
+  // ============================ PROTOTYPE AI / ML ===========================
+  //
+  // This is intentionally local/offline: no paid AI API and no extra
+  // dependency. The traffic classifier uses live onboard counts and the
+  // assistant answers common control-room questions from current app state.
+  TrafficLevel get trafficLevel {
+    if (onboardCount <= 10) return TrafficLevel.low;
+    if (onboardCount <= 25) return TrafficLevel.medium;
+    return TrafficLevel.high;
+  }
+
+  String get trafficLabel => trafficLevel.label;
+
+  String get trafficAdvice {
+    switch (trafficLevel) {
+      case TrafficLevel.low:
+        return 'Low passenger traffic. Bus capacity is comfortable.';
+      case TrafficLevel.medium:
+        return 'Medium passenger traffic. Keep monitoring boarding activity.';
+      case TrafficLevel.high:
+        return 'High passenger traffic. Monitor capacity and recent taps closely.';
+    }
+  }
+
+  String aiAnswer(String question) {
+    return AiChatService.answerQuery(
+      question: question,
+      locale: locale,
+      currentStops: stops,
+      currentStopIndex: currentStopIndex,
+      isMoving: simulatorRunning,
+      speedKmh: speedKmh,
+      wallets: wallets,
+      currentUserUid: currentUser?.linkedUid,
+    );
+  }
 
   // ============================ AUTH ========================================
   /// Real Firebase sign-in. Returns true on success; on failure sets
@@ -147,6 +709,22 @@ class AppState extends ChangeNotifier {
         linkedUid: linkedUid,
       );
       currentUser = profile;
+
+      final uid = linkedUid.trim().toUpperCase();
+      final existingIdx = wallets.indexWhere((w) => w.uid.toUpperCase() == uid);
+      if (existingIdx == -1) {
+        wallets.add(RfidWallet(
+          uid: uid,
+          holderName: username.trim(),
+          balance: 200.0,
+          active: true,
+          isDemo: false,
+        ));
+      } else {
+        wallets[existingIdx].holderName = username.trim();
+        wallets[existingIdx].active = true;
+      }
+
       notifyListeners();
       unawaited(_sendLoginEmailAndReport(profile));
       return true;
@@ -206,6 +784,11 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> refreshLocalIps() async {
+    localIps = await TelemetryServer.localIpAddresses();
+    notifyListeners();
+  }
+
   /// Called synchronously by TelemetryServer whenever the ESP32 posts a tap.
   /// Must return the JSON map that gets sent straight back to the board.
   Map<String, dynamic> _handleHardwareTap(String uid) {
@@ -213,6 +796,65 @@ class AppState extends ChangeNotifier {
     final result = _processTap(uid, source: 'ESP32');
     notifyListeners();
     return result;
+  }
+
+  String _resolveStopName(dynamic stopField, dynamic stopNameField) {
+    int? stopNum;
+    if (stopField is int && stopField >= 1 && stopField <= stops.length) {
+      stopNum = stopField;
+    } else if (stopNameField is int && stopNameField >= 1 && stopNameField <= stops.length) {
+      stopNum = stopNameField;
+    } else if (stopField is String) {
+      final p = int.tryParse(stopField.trim());
+      if (p != null && p >= 1 && p <= stops.length) stopNum = p;
+    }
+    if (stopNum != null) {
+      return stops[stopNum - 1].name;
+    }
+
+    final raw = (stopNameField ?? stopField ?? '').toString().trim();
+    if (raw.isNotEmpty) {
+      String clean = raw;
+      if (clean.contains(':')) {
+        final parts = clean.split(':');
+        if (parts.length > 1 && parts[1].trim().isNotEmpty) {
+          clean = parts[1].trim();
+        }
+      }
+      for (final s in stops) {
+        if (s.name.toLowerCase() == clean.toLowerCase() || s.id.toLowerCase() == clean.toLowerCase()) {
+          return s.name;
+        }
+      }
+      final lower = clean.toLowerCase().replaceAll('.', '').replaceAll("'", '');
+      for (final s in stops) {
+        final sLower = s.name.toLowerCase().replaceAll('.', '').replaceAll("'", '');
+        if (lower.contains(sLower) || sLower.contains(lower)) {
+          return s.name;
+        }
+      }
+      if (lower.contains('kempegowda') || lower.contains('majestic')) return stops[0].name;
+      if (lower.contains('maharani')) return stops[1].name;
+      if (lower.contains('kr circle') || lower.contains('k r circle')) return stops[2].name;
+      if (lower.contains('martha')) return stops[3].name;
+      if (lower.contains('corporation')) return stops[4].name;
+      if (lower.contains('poornima')) return stops[5].name;
+      if (lower.contains('lalbagh main')) return stops[6].name;
+      if (lower.contains('lalbagh west')) return stops[7].name;
+      if (lower.contains('ashoka')) return stops[8].name;
+      if (lower.contains('sarala')) return stops[9].name;
+      if (lower.contains('3rd blk') || lower.contains('3rd block')) return stops[10].name;
+      if (lower.contains('4th blk') || lower.contains('4th block')) return stops[11].name;
+      if (lower.contains('church')) return stops[12].name;
+      if (lower.contains('sanjay gandhi')) return stops[13].name;
+      if (lower.contains('carmel')) return stops[14].name;
+      if (lower.contains('pump house')) return stops[15].name;
+      if (lower.contains('east end')) return stops[16].name;
+      if (lower.contains('btm') || lower.contains('16th main')) return stops[17].name;
+
+      return clean;
+    }
+    return currentStop.name;
   }
 
   /// For self-contained hardware (your Arduino/ESP32 sketch, which keeps
@@ -224,44 +866,120 @@ class AppState extends ChangeNotifier {
   /// Expected payload: {"uid","name","type":"ENTRY"|"EXIT"|"DENIED_INVALID"
   /// |"DENIED_BALANCE","stop","fare","balance"}
   void _handleHardwareEvent(Map<String, dynamic> data) {
+    hasHardwareConnected = true;
+    hasHardwareStopReceived = true;
     telemetry = telemetry.copyWith(esp32Connected: true, lastPing: DateTime.now());
+    final boardIp = (data['ip'] ?? '').toString().trim();
+    if (boardIp.isNotEmpty) {
+      esp32Ip = boardIp;
+    }
 
     final uid = (data['uid'] ?? '').toString().toUpperCase();
+    if (uid.isEmpty) return;
+
     final name = (data['name'] ?? 'Unknown').toString();
-    final type = (data['type'] ?? '').toString();
-    final stop = (data['stop'] ?? currentStop.name).toString();
+    final type = (data['type'] ?? data['event'] ?? '').toString().toUpperCase();
+    final stop = _resolveStopName(data['stop'], data['stopName']);
     final fare = (data['fare'] as num?)?.toDouble() ?? 0;
     final balance = (data['balance'] as num?)?.toDouble() ?? 0;
+    final entryStopRaw = (data['entryStop'] ?? '').toString().trim();
+    final exitStopRaw = (data['exitStop'] ?? '').toString().trim();
+    final stopsTravelled = (data['stopsTravelled'] as num?)?.toInt();
+
+    final walletIndex = wallets.indexWhere((w) => w.uid.toUpperCase() == uid);
+    final hardwareWallet = walletIndex == -1
+        ? RfidWallet(uid: uid, holderName: name, balance: balance, active: true, isDemo: false)
+        : wallets[walletIndex];
+    if (walletIndex == -1) {
+      wallets.add(hardwareWallet);
+    }
+    if (name.isNotEmpty && name != 'Unknown') {
+      hardwareWallet.holderName = name;
+    }
+    hardwareWallet.balance = balance;
+    hardwareWallet.transactionTime = DateTime.now();
 
     switch (type) {
       case 'ENTRY':
+        final resolvedEntry = entryStopRaw.isNotEmpty ? _resolveStopName(null, entryStopRaw) : stop;
+        hardwareWallet.onboard = true;
+        hardwareWallet.entryStop = resolvedEntry;
+        hardwareWallet.recentExit = null;
+        hardwareWallet.lastFare = null;
+        final entryIdx = stops.indexWhere((s) => s.name == resolvedEntry);
+        if (entryIdx != -1) {
+          currentStopIndex = entryIdx;
+        }
         onboardCount++;
         enteredCount++;
         _addTransaction(FareTransaction(
-          time: DateTime.now(), uid: uid, holder: name, type: TxType.boarding,
-          stop: stop, amount: -fare, balanceAfter: balance,
+          time: DateTime.now(), uid: uid, holder: hardwareWallet.holderName, type: TxType.boarding,
+          stop: resolvedEntry, amount: 0, balanceAfter: balance,
+          entryStop: resolvedEntry,
         ));
-        _pushBanner('SMS Alert: ₹${fare.toStringAsFixed(2)} debited from Smart Card (UID: $uid) '
-            'at $stop. Current Balance: ₹${balance.toStringAsFixed(2)}.');
-        tts.speak(_l10n.ttsBoarding(name, stop, fare.toStringAsFixed(0)));
+        _pushBanner('SMS Alert: ${hardwareWallet.holderName} boarded bus at $resolvedEntry. Current Balance: ₹${balance.toStringAsFixed(2)}.');
+        tts.speak(_l10n.ttsBoarding(hardwareWallet.holderName, localizedStopName(resolvedEntry), '0'));
+        unawaited(_syncBusStatusToFirestore());
         break;
       case 'EXIT':
+        hardwareWallet.onboard = false;
+        final resolvedExit = exitStopRaw.isNotEmpty ? _resolveStopName(null, exitStopRaw) : stop;
+        final resolvedEntry = entryStopRaw.isNotEmpty
+            ? _resolveStopName(null, entryStopRaw)
+            : (hardwareWallet.entryStop ?? stops.first.name);
+        final entryIdx = stops.indexWhere((s) => s.name == resolvedEntry);
+        final exitIdx = stops.indexWhere((s) => s.name == resolvedExit);
+        final calcStops = (entryIdx >= 0 && exitIdx >= 0) ? max(1, (exitIdx - entryIdx).abs()) : (stopsTravelled ?? 1);
+        final finalFare = fare > 0 ? fare : (calcStops * 10.0);
+        hardwareWallet.recentExit = resolvedExit;
+        hardwareWallet.entryStop = resolvedEntry;
+        hardwareWallet.lastFare = finalFare;
         onboardCount = max(0, onboardCount - 1);
         exitedCount++;
         _addTransaction(FareTransaction(
-          time: DateTime.now(), uid: uid, holder: name, type: TxType.exit,
-          stop: stop, amount: -fare, balanceAfter: balance,
+          time: DateTime.now(), uid: uid, holder: hardwareWallet.holderName, type: TxType.exit,
+          stop: resolvedExit, amount: -finalFare, balanceAfter: balance,
+          entryStop: resolvedEntry,
+          exitStop: resolvedExit,
+          stopsTravelled: calcStops,
         ));
-        _pushBanner('SMS Alert: ${name} tapped out (Exit) at $stop. '
-            'Fare ₹${fare.toStringAsFixed(2)} deducted. Current Balance: ₹${balance.toStringAsFixed(2)}.');
-        tts.speak(_l10n.ttsExit(name, stop));
+        _pushBanner('SMS Alert: ${hardwareWallet.holderName} tapped out (Exit) at $resolvedExit. '
+            'Fare ₹${finalFare.toStringAsFixed(2)} deducted. Current Balance: ₹${balance.toStringAsFixed(2)}.');
+        tts.speak(_l10n.ttsExit(hardwareWallet.holderName, localizedStopName(resolvedExit)));
         break;
-      case 'DENIED_INVALID':
+      case 'DEACTIVATED':
+      case 'BLOCKED':
+        hardwareWallet.active = false;
+        _addTransaction(FareTransaction(
+          time: DateTime.now(), uid: uid.isEmpty ? 'UNKNOWN' : uid, holder: hardwareWallet.holderName,
+          type: TxType.denied, stop: stop, amount: 0, balanceAfter: balance,
+          reason: 'CARD_DEACTIVATED',
+        ));
+        _pushBanner('SMS Alert: Access DENIED for ${hardwareWallet.holderName} ($uid). Card is DEACTIVATED / BLOCKED.');
+        tts.speak('Access denied. Card is deactivated.');
+        break;
+      case 'LOWBAL':
       case 'DENIED_BALANCE':
-        _pushBanner('SMS Alert: Access DENIED at $stop (${type == 'DENIED_INVALID' ? 'unregistered card' : 'insufficient balance'}).');
+        _addTransaction(FareTransaction(
+          time: DateTime.now(), uid: uid.isEmpty ? 'UNKNOWN' : uid, holder: hardwareWallet.holderName,
+          type: TxType.denied, stop: stop, amount: 0, balanceAfter: balance,
+          reason: 'LOW_BALANCE',
+        ));
+        _pushBanner('SMS Alert: Access DENIED for ${hardwareWallet.holderName} at $stop (insufficient balance).');
+        tts.speak(_l10n.ttsDenied);
+        break;
+      case 'INVALID':
+      case 'DENIED_INVALID':
+        _addTransaction(FareTransaction(
+          time: DateTime.now(), uid: uid.isEmpty ? 'UNKNOWN' : uid, holder: name,
+          type: TxType.denied, stop: stop, amount: 0, balanceAfter: balance,
+          reason: 'INVALID_CARD',
+        ));
+        _pushBanner('SMS Alert: Access DENIED at $stop (unregistered card $uid).');
         tts.speak(_l10n.ttsDenied);
         break;
     }
+    unawaited(_persistCardState(hardwareWallet));
     notifyListeners();
   }
 
@@ -270,18 +988,33 @@ class AppState extends ChangeNotifier {
   /// map to track the REAL bus instead of only the on-screen simulator.
   /// Expected payload: {"stopNum": 3, "stopName": "KR Circle", "moving": true}
   void _handleStopUpdate(Map<String, dynamic> data) {
+    hasHardwareConnected = true;
+    hasHardwareStopReceived = true;
     telemetry = telemetry.copyWith(esp32Connected: true, lastPing: DateTime.now());
-    final stopNum = (data['stopNum'] as num?)?.toInt();
+    final stopNum = (data['stopNum'] ?? data['stop']) as num?;
+    final stopName = (data['stopName'] ?? data['stop'] ?? '').toString();
     final moving = data['moving'] as bool?;
+    final event = (data['event'] ?? '').toString();
 
     if (stopNum != null && stopNum >= 1 && stopNum <= stops.length) {
-      currentStopIndex = stopNum - 1; // hardware stops are 1-indexed, list is 0-indexed
+      currentStopIndex = stopNum.toInt() - 1; // hardware stops are 1-indexed, list is 0-indexed
       routeProgress = 0;
+    } else if (stopName.isNotEmpty) {
+      final resolved = _resolveStopName(null, stopName);
+      final idx = stops.indexWhere((s) => s.name == resolved);
+      if (idx != -1) currentStopIndex = idx;
     }
     if (moving != null) {
       simulatorRunning = moving; // reuses the same "MOVING"/"STOPPED" status card
-      speedKmh = moving ? speedKmh.clamp(18, 40).toDouble() : 0;
+      speedKmh = moving ? (speedKmh > 0 ? speedKmh : 24.0) : 0;
+    } else if (event == 'BUS_DEPARTED') {
+      simulatorRunning = true;
+      speedKmh = 25;
+    } else if (event == 'STOP_ARRIVED') {
+      simulatorRunning = false;
+      speedKmh = 0;
     }
+    unawaited(_syncBusStatusToFirestore());
     notifyListeners();
   }
 
@@ -293,26 +1026,85 @@ class AppState extends ChangeNotifier {
     return result;
   }
 
+  /// Dedicated simulation for the currently logged-in passenger's card
+  Map<String, dynamic>? simulatePassengerTap([String? cardUid]) {
+    final uid = (cardUid != null && cardUid.isNotEmpty)
+        ? cardUid.trim().toUpperCase()
+        : currentUser?.linkedUid?.trim().toUpperCase();
+    if (uid == null || uid.isEmpty) return null;
+    return simulateTap(uid);
+  }
+
+  /// Advance bus to the next stop and sync with Firestore & UI
+  void advanceToNextStop() {
+    hasHardwareStopReceived = true;
+    currentStopIndex = (currentStopIndex + 1) % stops.length;
+    unawaited(_syncBusStatusToFirestore());
+    notifyListeners();
+  }
+
+  Future<void> _persistCardState(RfidWallet wallet) async {
+    try {
+      await _walletsCollection.doc(wallet.uid.toUpperCase()).set({
+        'uid': wallet.uid.toUpperCase(),
+        'holderName': wallet.holderName,
+        'balance': wallet.balance,
+        'active': wallet.active,
+        'onboard': wallet.onboard,
+        'entryStop': wallet.entryStop,
+        'recentExit': wallet.recentExit,
+        'lastFare': wallet.lastFare,
+        'transactionTime': wallet.transactionTime == null ? null : Timestamp.fromDate(wallet.transactionTime!),
+        'isDemo': false,
+        'lastUpdated': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Could not persist card state: $e');
+    }
+  }
+
   Map<String, dynamic> _processTap(String uid, {required String source}) {
     final idx = wallets.indexWhere((w) => w.uid == uid);
     if (idx == -1) {
+      _addTransaction(FareTransaction(
+        time: DateTime.now(), uid: uid, holder: 'Unknown Card', type: TxType.denied,
+        stop: currentStop.name, amount: 0, balanceAfter: 0, reason: 'INVALID_CARD',
+      ));
       _pushBanner('SMS Alert: Unregistered card ($uid) tapped at ${currentStop.name}. Access DENIED.');
       tts.speak(_l10n.ttsDenied);
       return {'status': 'DENIED', 'reason': 'unregistered'};
     }
     final wallet = wallets[idx];
 
+    if (!wallet.active) {
+      _addTransaction(FareTransaction(
+        time: DateTime.now(), uid: uid, holder: wallet.holderName, type: TxType.denied,
+        stop: currentStop.name, amount: 0, balanceAfter: wallet.balance, reason: 'CARD_INACTIVE',
+      ));
+      _pushBanner('SMS Alert: ${wallet.holderName}\'s Smart Card is inactive. Access DENIED.');
+      tts.speak(_l10n.ttsDenied);
+      return {'status': 'DENIED', 'reason': 'card_inactive', 'balance': wallet.balance};
+    }
+
     if (!wallet.onboard) {
       // ---- BOARDING ----
-      final fare = currentStop.fare == 0 ? 15.0 : currentStop.fare;
+      const fare = 10.0; // minimum fare used only to validate boarding; deduction happens at exit
       if (wallet.balance < fare) {
+        _addTransaction(FareTransaction(
+          time: DateTime.now(), uid: uid, holder: wallet.holderName, type: TxType.denied,
+          stop: currentStop.name, amount: 0, balanceAfter: wallet.balance, reason: 'LOW_BALANCE',
+        ));
         _pushBanner('SMS Alert: Insufficient balance on ${wallet.holderName}\'s card (UID: $uid). '
             'Balance: ₹${wallet.balance.toStringAsFixed(2)}. Access DENIED.');
         tts.speak(_l10n.ttsDenied);
         return {'status': 'DENIED', 'reason': 'insufficient_balance', 'balance': wallet.balance};
       }
-      wallet.balance -= fare;
+      // Prototype rule: fare is calculated and deducted only at EXIT.
       wallet.onboard = true;
+      wallet.entryStop = currentStop.name;
+      wallet.recentExit = null;
+      wallet.lastFare = null;
+      wallet.transactionTime = DateTime.now();
       onboardCount++;
       enteredCount++;
       _addTransaction(FareTransaction(
@@ -321,16 +1113,30 @@ class AppState extends ChangeNotifier {
         holder: wallet.holderName,
         type: TxType.boarding,
         stop: currentStop.name,
-        amount: -fare,
+        amount: 0,
         balanceAfter: wallet.balance,
+        entryStop: currentStop.name,
       ));
-      _pushBanner('SMS Alert: ₹${fare.toStringAsFixed(2)} debited from Smart Card (UID: $uid) '
-          'at ${currentStop.name}. Current Balance: ₹${wallet.balance.toStringAsFixed(2)}.');
-      tts.speak(_l10n.ttsBoarding(wallet.holderName, currentStop.name, fare.toStringAsFixed(0)));
+      _pushBanner('SMS Alert: ${wallet.holderName} tapped in at ${currentStop.name}. Fare will be calculated and deducted at exit.');
+      tts.speak(_l10n.ttsBoarding(wallet.holderName, localizedStopName(currentStop.name), fare.toStringAsFixed(0)));
+      unawaited(_persistCardState(wallet));
       return {'status': 'APPROVED', 'balance': wallet.balance, 'type': 'BOARDING', 'audio': currentStop.audioTrack};
     } else {
       // ---- EXIT ----
+      final entryIndex = stops.indexWhere((s) => s.name == wallet.entryStop);
+      final exitIndex = currentStopIndex;
+      final stopsTravelled = entryIndex >= 0 ? max(1, (exitIndex - entryIndex).abs()) : 1;
+      final fare = stopsTravelled * 10.0;
+      if (wallet.balance < fare) {
+        _pushBanner('SMS Alert: Insufficient balance for ${wallet.holderName} at exit.');
+        tts.speak(_l10n.ttsDenied);
+        return {'status': 'DENIED', 'reason': 'insufficient_balance_at_exit', 'balance': wallet.balance};
+      }
+      wallet.balance -= fare;
       wallet.onboard = false;
+      wallet.recentExit = currentStop.name;
+      wallet.lastFare = fare;
+      wallet.transactionTime = DateTime.now();
       onboardCount = max(0, onboardCount - 1);
       exitedCount++;
       _addTransaction(FareTransaction(
@@ -339,18 +1145,27 @@ class AppState extends ChangeNotifier {
         holder: wallet.holderName,
         type: TxType.exit,
         stop: currentStop.name,
-        amount: 0,
+        amount: -fare,
         balanceAfter: wallet.balance,
+        entryStop: wallet.entryStop,
+        exitStop: currentStop.name,
+        stopsTravelled: stopsTravelled,
       ));
-      _pushBanner('SMS Alert: ${wallet.holderName} tapped out (Exit) at ${currentStop.name}. '
+      _pushBanner('SMS Alert: ${wallet.holderName} tapped out (Exit) at ${localizedStopName(currentStop.name)}. '
           'Current Balance: ₹${wallet.balance.toStringAsFixed(2)}.');
-      tts.speak(_l10n.ttsExit(wallet.holderName, currentStop.name));
+      tts.speak(_l10n.ttsExit(wallet.holderName, localizedStopName(currentStop.name)));
+      unawaited(_persistCardState(wallet));
       return {'status': 'APPROVED', 'balance': wallet.balance, 'type': 'EXIT', 'audio': currentStop.audioTrack};
     }
   }
 
   // ============================ RECHARGE ======================================
-  Future<void> recharge(String uid, double amount) async {
+  /// The original, instant, simulated recharge — used by the admin's wallet
+  /// panel (a testing/demo tool, not a real passenger payment) and internally
+  /// once a real Razorpay payment has actually succeeded (see
+  /// [startRazorpayRecharge] below). `razorpayPaymentId` is null for the
+  /// simulated/demo path and only ever set after a real, verified payment.
+  Future<void> recharge(String uid, double amount, {String? razorpayPaymentId}) async {
     final idx = wallets.indexWhere((w) => w.uid == uid);
     if (idx == -1) return;
     final wallet = wallets[idx];
@@ -377,23 +1192,186 @@ class AppState extends ChangeNotifier {
         await http.post(
           Uri.parse('http://$esp32Ip/recharge'),
           headers: {'content-type': 'application/json'},
-          body: '{"uid":"$uid","balance":${wallet.balance}}',
+          body: '{"uid":"$uid","balance":${wallet.balance},"amount":$amount}',
         );
       } catch (_) {
         // Board offline / wrong IP — recharge already applied locally, ignore.
       }
     }
+
+    // Persist the new balance to Firestore so it survives an app restart or
+    // a login on a different device. This never blocks or reverts the
+    // recharge the passenger already saw succeed on screen — if it fails
+    // (e.g. momentarily offline), we just log it and move on; the balance
+    // stays correct locally and will be re-saved on the next recharge.
+    try {
+      await _walletsCollection.doc(uid).set({
+        'balance': wallet.balance,
+        'holderName': wallet.holderName,
+        'lastUpdated': FieldValue.serverTimestamp(),
+        if (razorpayPaymentId != null) 'lastRazorpayPaymentId': razorpayPaymentId,
+      }, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Could not save wallet balance to Firestore: $e');
+    }
   }
 
-  void addWallet(String uid, String name) {
-    if (wallets.any((w) => w.uid == uid)) return;
-    wallets.add(RfidWallet(uid: uid.toUpperCase(), holderName: name, balance: 0));
+  // ============================ RAZORPAY (TEST MODE) =========================
+  /// Opens the real Razorpay checkout screen (test mode) for a passenger to
+  /// recharge their own card with actual test-mode payment methods (test
+  /// card numbers / test UPI IDs from the Razorpay dashboard — no real
+  /// money ever moves). On success, applies the exact same [recharge] logic
+  /// used everywhere else in the app (same balance update, same SMS banner,
+  /// same TTS announcement, same Firestore save) — Razorpay only decides
+  /// WHETHER the recharge happens, never how it's applied.
+  void startRazorpayRecharge({
+    required String uid,
+    required String holderName,
+    required double amount,
+    required String contactEmail,
+    required void Function(String message) onFailed,
+  }) {
+    _paymentService.startCheckout(
+      amountRupees: amount,
+      holderName: holderName,
+      contactEmail: contactEmail,
+      onSuccess: (PaymentSuccessResponse response) {
+        recharge(uid, amount, razorpayPaymentId: response.paymentId);
+      },
+      onError: (PaymentFailureResponse response) {
+        onFailed(response.message ?? 'Payment failed or was cancelled.');
+      },
+    );
+  }
+
+  // ============================ CARD ACTIVATION =============================
+  /// Admin-only card control. The status is stored in Firestore and the
+  /// realtime wallet listener immediately updates every open dashboard.
+  Future<String?> setCardActive(String uid, bool active) async {
+    final normalized = uid.trim().toUpperCase();
+    final index = wallets.indexWhere((w) => w.uid.toUpperCase() == normalized);
+    if (index == -1) return 'RFID card not found.';
+
+    final wallet = wallets[index];
+    wallet.active = active;
     notifyListeners();
+
+    try {
+      try {
+        await _walletsCollection.doc(normalized).set({
+          'uid': normalized,
+          'active': active,
+          'lastStatusChange': FieldValue.serverTimestamp(),
+          'lastUpdated': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      } catch (e) {
+        debugPrint('Firestore wallet update non-fatal: $e');
+      }
+
+      // Bi-directional hardware sync with NodeMCU / ESP8266
+      if (esp32Ip.isNotEmpty) {
+        final statusVal = active ? '1' : '0';
+        try {
+          // Primary query param endpoint
+          http.get(
+            Uri.parse('http://$esp32Ip/card-status?uid=$normalized&status=$statusVal&active=$statusVal'),
+          ).timeout(const Duration(seconds: 3)).catchError((_) => http.Response('', 500));
+          
+          // Action-specific endpoint
+          http.get(
+            Uri.parse('http://$esp32Ip/${active ? "activate" : "block"}?card=$normalized&uid=$normalized'),
+          ).timeout(const Duration(seconds: 3)).catchError((_) => http.Response('', 500));
+
+          // JSON POST endpoint
+          http.post(
+            Uri.parse('http://$esp32Ip/card-status'),
+            headers: {'content-type': 'application/json'},
+            body: '{"uid":"$normalized","status":"$statusVal","active":$active,"isBlocked":${!active}}',
+          ).timeout(const Duration(seconds: 3)).catchError((_) => http.Response('', 500));
+        } catch (_) {}
+      }
+
+      _pushBanner(active
+          ? 'Smart Card ${wallet.holderName} activated (Hardware Green).'
+          : 'Smart Card ${wallet.holderName} deactivated (Hardware Red).');
+      return null;
+    } catch (e) {
+      wallet.active = !active;
+      notifyListeners();
+      return 'Could not update card status: $e';
+    }
+  }
+
+  void setNodeMcuIp(String newIp) {
+    esp32Ip = newIp.trim();
+    _lastEventSeq = -1;
+    unawaited(connectToNodeMcu(esp32Ip));
+  }
+
+  Future<bool> connectToNodeMcu(String ip) async {
+    final cleanIp = ip.trim();
+    if (cleanIp.isEmpty) return false;
+    esp32Ip = cleanIp;
+    notifyListeners();
+    try {
+      final response = await http
+          .get(Uri.parse('http://$cleanIp/status'))
+          .timeout(const Duration(seconds: 3));
+      if (response.statusCode == 200) {
+        hasHardwareConnected = true;
+        telemetry = telemetry.copyWith(esp32Connected: true, lastPing: DateTime.now());
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final stopNum = (data['stop'] ?? data['stopNum']) as num?;
+        if (stopNum != null && stopNum >= 1 && stopNum <= stops.length) {
+          currentStopIndex = stopNum.toInt() - 1;
+          hasHardwareStopReceived = true;
+        }
+        final moving = data['moving'] as bool?;
+        if (moving != null) {
+          simulatorRunning = moving;
+          speedKmh = moving ? speedKmh.clamp(18, 40).toDouble() : 0;
+        }
+        _lastEventSeq = (data['eventSeq'] as num?)?.toInt() ?? _lastEventSeq;
+        _startNodeMcuPolling();
+        notifyListeners();
+        return true;
+      }
+    } catch (e) {
+      debugPrint('Error connecting to NodeMCU at $cleanIp: $e');
+    }
+    telemetry = telemetry.copyWith(esp32Connected: false);
+    notifyListeners();
+    return false;
+  }
+
+  Future<String?> addWallet(String uid, String name) async {
+    final normalized = uid.trim().toUpperCase();
+    if (normalized.isEmpty || name.trim().isEmpty) return 'UID and holder name are required.';
+    if (wallets.any((w) => w.uid == normalized)) return 'That RFID UID is already in use. Choose a different card.';
+    final wallet = RfidWallet(uid: normalized, holderName: name.trim(), balance: 0);
+    wallets.add(wallet);
+    try {
+      await _walletsCollection.doc(normalized).set({
+        'uid': normalized,
+        'holderName': name.trim(),
+        'balance': 0,
+        'active': true,
+        'isDemo': false,
+        'createdAt': FieldValue.serverTimestamp(),
+        'lastUpdated': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+      notifyListeners();
+      return null;
+    } catch (e) {
+      wallets.remove(wallet);
+      return 'Could not register RFID card: $e';
+    }
   }
 
   // ============================ SIMULATOR =====================================
   void startSimulator() {
     if (simulatorRunning) return;
+    hasHardwareStopReceived = true;
     simulatorRunning = true;
     speedKmh = 24 + Random().nextInt(12).toDouble();
     _simTimer = Timer.periodic(const Duration(seconds: 4), (_) {
@@ -410,7 +1388,7 @@ class AppState extends ChangeNotifier {
         // update, exactly like it would off a real ESP32 GPS ping — "Bus
         // reaching stop 25A" style announcement, in whichever language the
         // rider/operator has selected.
-        tts.speak(_l10n.ttsApproachingStop(currentStop.name));
+        tts.speak(_l10n.ttsApproachingStop(localizedStopName(currentStop.name)));
       }
       notifyListeners();
     });
@@ -444,14 +1422,105 @@ class AppState extends ChangeNotifier {
   void _addTransaction(FareTransaction tx) {
     transactions.insert(0, tx);
     if (transactions.length > 200) transactions.removeLast();
+    unawaited(_persistTransaction(tx));
+  }
+
+  Future<void> _persistTransaction(FareTransaction tx) async {
+    try {
+      String? firebaseUid;
+      if (currentUser?.role == UserRole.passenger && currentUser?.linkedUid?.toUpperCase() == tx.uid.toUpperCase()) {
+        firebaseUid = currentUser!.uid;
+      } else {
+        final walletDoc = await _walletsCollection.doc(tx.uid.toUpperCase()).get();
+        firebaseUid = walletDoc.data()?['linkedFirebaseUid']?.toString();
+      }
+      if (firebaseUid == null || firebaseUid.isEmpty) {
+        final userQuery = await FirebaseFirestore.instance
+            .collection('users')
+            .where('linkedUid', isEqualTo: tx.uid.toUpperCase())
+            .limit(1)
+            .get();
+        if (userQuery.docs.isNotEmpty) {
+          firebaseUid = userQuery.docs.first.id;
+        }
+      }
+
+      final fare = tx.type == TxType.exit ? tx.amount.abs() : 0.0;
+      await FirebaseFirestore.instance.collection('transactions').add({
+        'firebaseUid': firebaseUid ?? '',
+        'uid': tx.uid.toUpperCase(),
+        'cardHolder': tx.holder,
+        'type': tx.type.label,
+        'stop': tx.stop,
+        'entryStop': tx.entryStop,
+        'exitStop': tx.exitStop,
+        'stopsTravelled': tx.stopsTravelled,
+        'fare': fare,
+        'amount': tx.amount,
+        'balanceAfter': tx.balanceAfter,
+        'reason': tx.reason,
+        'transactionTime': Timestamp.fromDate(tx.time),
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      debugPrint('Could not persist transaction: $e');
+    }
+  }
+
+  // ============================ NODEMCU POLLING ===============================
+  Timer? _nodeMcuPollTimer;
+  int _lastEventSeq = -1;
+
+  void _startNodeMcuPolling() {
+    _nodeMcuPollTimer?.cancel();
+    _nodeMcuPollTimer = Timer.periodic(const Duration(milliseconds: 1500), (_) async {
+      if (esp32Ip.isEmpty) return;
+      try {
+        final response = await http
+            .get(Uri.parse('http://$esp32Ip/status'))
+            .timeout(const Duration(milliseconds: 1200));
+        if (response.statusCode == 200) {
+          hasHardwareConnected = true;
+          telemetry = telemetry.copyWith(esp32Connected: true, lastPing: DateTime.now());
+          final data = jsonDecode(response.body) as Map<String, dynamic>;
+          final eventSeq = (data['eventSeq'] as num?)?.toInt() ?? 0;
+          final moving = data['moving'] as bool?;
+          final stopNum = (data['stop'] as num?)?.toInt();
+
+          if (stopNum != null && stopNum >= 1 && stopNum <= stops.length) {
+            currentStopIndex = stopNum - 1;
+            hasHardwareStopReceived = true;
+          }
+          if (moving != null) {
+            simulatorRunning = moving;
+            speedKmh = moving ? speedKmh.clamp(18, 40).toDouble() : 0;
+          }
+
+          if (eventSeq != _lastEventSeq) {
+            _lastEventSeq = eventSeq;
+            final ev = (data['event'] ?? data['type'] ?? '').toString();
+            if (ev != 'INIT' && ev.isNotEmpty) {
+              _handleHardwareEvent(data);
+            }
+          }
+          notifyListeners();
+        }
+      } catch (_) {
+        // NodeMCU offline / network switch
+      }
+    });
   }
 
   @override
   void dispose() {
+    _nodeMcuPollTimer?.cancel();
     _simTimer?.cancel();
     _authSub?.cancel();
+    _walletsSub?.cancel();
+    _transactionsSub?.cancel();
     telemetryServer.stop();
     tts.dispose();
+    _paymentService.dispose();
     super.dispose();
   }
 }

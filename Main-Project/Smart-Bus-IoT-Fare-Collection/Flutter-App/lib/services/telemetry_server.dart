@@ -119,10 +119,26 @@ class TelemetryServer {
     // Flutter side after a successful PhonePe/GPay simulated recharge) if
     // you wire your board to expose its own listener. Kept here for the
     // reverse direction described in the spec ("send HTTP call to ESP32").
-    router.post('/api/bus/recharge-ack', (Request request) async {
+    // Root POST handler from NodeMCU (postHttp('/', jsonEvent / jsonLegacy))
+    router.post('/', (Request request) async {
       final body = await request.readAsString();
-      onRechargePush?.call(jsonDecode(body) as Map<String, dynamic>);
-      return Response.ok(jsonEncode({'status': 'ok'}));
+      try {
+        final data = jsonDecode(body) as Map<String, dynamic>;
+        final event = (data['event'] ?? data['type'] ?? '').toString();
+        if (event == 'BUS_DEPARTED' || event == 'STOP_ARRIVED' || data.containsKey('stopNum')) {
+          onStopUpdate?.call(data);
+        } else if (data.containsKey('uid') || event == 'ENTRY' || event == 'EXIT' || event.startsWith('DENIED')) {
+          onHardwareEvent?.call(data);
+        }
+        return Response.ok(jsonEncode({'status': 'ok'}));
+      } catch (e) {
+        return Response(400, body: jsonEncode({'status': 'error', 'reason': 'bad payload'}));
+      }
+    });
+
+    router.get('/', (Request request) {
+      return Response.ok(jsonEncode({'status': 'ok', 'server': 'SmartBus Telemetry Server'}),
+          headers: {'content-type': 'application/json'});
     });
 
     final handler = const Pipeline().addMiddleware(logRequests()).addHandler(router.call);

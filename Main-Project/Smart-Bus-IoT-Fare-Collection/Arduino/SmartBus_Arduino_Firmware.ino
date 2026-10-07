@@ -45,7 +45,7 @@
 #define PIN_NODE_RX    A3  // Command RX from NodeMCU D7
 
 // --- VOLUME CONFIGURATION ---
-#define DF_VOLUME      30  // 30 = Max Volume (Clear and loud)
+#define DF_VOLUME      30  // 30 = Maximum Volume (Range: 0-30)
 
 // --- OBJECTS ---
 SoftwareSerial dfSerial(PIN_DF_RX, PIN_DF_TX);       // D2 (RX), D3 (TX)
@@ -68,8 +68,8 @@ struct Passenger {
 int numPassengers = 7;
 
 Passenger passengers[MAX_PASSENGERS] = {
-  {{0x54, 0x02, 0xBB, 0xA9}, "Bhanu",     200, false, 0, false}, // Valid Card (Active)
-  {{0x63, 0xE6, 0xD5, 0x1D}, "Karthik",   5,   false, 0, false},  // Inactive/Blocked by default
+  {{0x54, 0x02, 0xBB, 0xA9}, "Bhanu",     10,  false, 0, false}, // Valid Card (Active: Rs.10 starting balance)
+  {{0x63, 0xE6, 0xD5, 0x1D}, "Karthik",   200, false, 0, false}, // Valid Card (Active)
   {{0xF0, 0xC2, 0x7F, 0x5F}, "Gayathri",  200, false, 0, false}, // Valid Card (Active)
   {{0x90, 0x44, 0x44, 0x55}, "Nharika",   200, false, 0, false}, // Valid Card (Active)
   {{0x5B, 0x85, 0x0B, 0x1A}, "Kanthesh",  200, false, 0, false}, // Valid Card (Active)
@@ -373,8 +373,8 @@ void processNodeMcuCommand(String cmd) {
       }
     }
   }
-  // --- 3. CARD STATUS COMMAND: CARDSTATUS,UID,STATUS (1 = Active, 0 = Inactive/Blocked) ---
-  else if (cmd.startsWith("CARDSTATUS,")) {
+  // --- 3. CARD STATUS COMMAND: CARDSTATUS,UID,STATUS or CARD_STATUS,UID,STATUS (1 = Active, 0 = Inactive/Blocked) ---
+  else if (cmd.startsWith("CARDSTATUS,") || cmd.startsWith("CARD_STATUS,")) {
     int c1 = cmd.indexOf(',');
     int c2 = cmd.indexOf(',', c1 + 1);
     if (c1 != -1 && c2 != -1) {
@@ -702,7 +702,7 @@ void setup() {
   delay(500);
   sendDFCommand(0x09, 0, 2); // Select TF Card
   delay(100);
-  sendDFCommand(0x06, 0, DF_VOLUME); // Max Volume (30)
+  sendDFCommand(0x06, 0, DF_VOLUME); // Set volume (30)
   delay(100);
 
   // Play Initial Stop 1 Announcement (Kempegowda Bus Station)

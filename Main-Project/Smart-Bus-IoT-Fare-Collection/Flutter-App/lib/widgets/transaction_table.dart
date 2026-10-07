@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../l10n/generated/app_localizations.dart';
 import '../models/models.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
@@ -22,9 +23,24 @@ class TransactionTable extends StatelessWidget {
     }
   }
 
+  String _typeLabel(TxType t, AppLocalizations l10n) {
+    switch (t) {
+      case TxType.boarding:
+        return l10n.typeBoarding;
+      case TxType.exit:
+        return l10n.typeExit;
+      case TxType.recharge:
+        return l10n.typeRecharge;
+      case TxType.denied:
+        return l10n.typeDenied;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final txs = context.watch<AppState>().transactions;
+    final app = context.watch<AppState>();
+    final txs = app.transactions;
+    final l10n = AppLocalizations.of(context);
     final timeFmt = DateFormat('HH:mm:ss');
 
     return Container(
@@ -33,27 +49,33 @@ class TransactionTable extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(Icons.receipt_long, size: 16, color: AppColors.green),
-              SizedBox(width: 6),
-              Text('LIVE TRANSACTION FEED',
-                  style: TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 1.2)),
+              const Icon(Icons.receipt_long, size: 16, color: AppColors.green),
+              const SizedBox(width: 6),
+              Text(
+                l10n.transactionsTitle,
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 1.2,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 10),
-          _HeaderRow(),
+          _HeaderRow(l10n: l10n),
           const Divider(color: AppColors.border, height: 1),
           SizedBox(
             height: 320,
             child: txs.isEmpty
-                ? const Center(
-                    child: Text('No taps yet — tap a card or start the simulator.',
-                        style: TextStyle(color: AppColors.textSecondary, fontSize: 12)))
+                ? Center(
+                    child: Text(
+                      l10n.noTransactions,
+                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                    ),
+                  )
                 : ListView.separated(
                     itemCount: txs.length,
                     separatorBuilder: (_, __) =>
@@ -72,28 +94,31 @@ class TransactionTable extends StatelessWidget {
                               child: Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                 decoration: BoxDecoration(
-                                  color: _typeColor(tx.type).withOpacity(0.15),
+                                  color: _typeColor(tx.type).withValues(alpha: 0.15),
                                   borderRadius: BorderRadius.circular(4),
                                 ),
-                                child: Text(tx.type.label,
-                                    style: TextStyle(
-                                        color: _typeColor(tx.type),
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold)),
+                                child: Text(
+                                  _typeLabel(tx.type, l10n),
+                                  style: TextStyle(
+                                    color: _typeColor(tx.type),
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                               ),
                             ),
-                            _cell(tx.stop, flex: 4),
+                            _cell(app.localizedStopName(tx.stop), flex: 4),
                             Expanded(
                               flex: 2,
                               child: Text(
-                                '${tx.amount >= 0 ? '+' : ''}₹${tx.amount.toStringAsFixed(2)}',
+                                '${tx.amount >= 0 ? '+' : ''}₹${tx.amount.toStringAsFixed(0)}',
                                 style: TextStyle(
-                                    color: tx.amount >= 0 ? AppColors.green : AppColors.red,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 12),
+                                  color: tx.amount >= 0 ? AppColors.green : AppColors.red,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 12,
+                                ),
                               ),
                             ),
-                            _cell('₹${tx.balanceAfter.toStringAsFixed(2)}', flex: 2),
                           ],
                         ),
                       );
@@ -107,31 +132,40 @@ class TransactionTable extends StatelessWidget {
 
   Widget _cell(String text, {int flex = 1, bool mono = false}) => Expanded(
         flex: flex,
-        child: Text(text,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 12,
-                fontFamily: mono ? 'monospace' : null)),
+        child: Text(
+          text,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: AppColors.textPrimary,
+            fontSize: 12,
+            fontFamily: mono ? 'monospace' : null,
+          ),
+        ),
       );
 }
 
 class _HeaderRow extends StatelessWidget {
+  final AppLocalizations l10n;
+
+  const _HeaderRow({required this.l10n});
+
   @override
   Widget build(BuildContext context) {
     const style = TextStyle(
-        color: AppColors.textSecondary, fontSize: 11, fontWeight: FontWeight.w600);
-    return const Padding(
-      padding: EdgeInsets.only(bottom: 6),
+      color: AppColors.textSecondary,
+      fontSize: 10,
+      fontWeight: FontWeight.w600,
+    );
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
       child: Row(
         children: [
-          Expanded(flex: 2, child: Text('TIME', style: style)),
-          Expanded(flex: 3, child: Text('CARD', style: style)),
-          Expanded(flex: 3, child: Text('HOLDER', style: style)),
-          Expanded(flex: 2, child: Text('TYPE', style: style)),
-          Expanded(flex: 4, child: Text('STOP', style: style)),
-          Expanded(flex: 2, child: Text('AMOUNT', style: style)),
-          Expanded(flex: 2, child: Text('BALANCE', style: style)),
+          Expanded(flex: 2, child: Text(l10n.colTime.toUpperCase(), style: style)),
+          Expanded(flex: 3, child: Text(l10n.colUid.toUpperCase(), style: style)),
+          Expanded(flex: 3, child: Text(l10n.colPassenger.toUpperCase(), style: style)),
+          Expanded(flex: 2, child: Text(l10n.colType.toUpperCase(), style: style)),
+          Expanded(flex: 4, child: Text(l10n.colStop.toUpperCase(), style: style)),
+          Expanded(flex: 2, child: Text(l10n.colAmount.toUpperCase(), style: style)),
         ],
       ),
     );

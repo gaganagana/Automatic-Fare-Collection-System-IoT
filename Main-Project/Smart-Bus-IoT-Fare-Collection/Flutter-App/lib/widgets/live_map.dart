@@ -1,87 +1,22 @@
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:provider/provider.dart';
 
+import '../l10n/generated/app_localizations.dart';
 import '../models/models.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 
-/// Real Google Maps view of the bus route, replacing the earlier
-/// dependency-free schematic map. Needs a Google Maps API key — see
-/// SETUP_GUIDE.md section 10 for how to get one and where to put it.
-///
-/// Draws: a grey polyline for the full route, a green polyline for the
-/// travelled portion, a marker at every stop, and an amber marker for the
-/// bus itself that smoothly interpolates its real lat/lng between the
-/// current and next stop as AppState.routeProgress advances — the same
-/// animation the old schematic map did, just against real coordinates now.
-class LiveMap extends StatefulWidget {
+/// A self-contained "map" of the route. It does NOT need a Google Maps
+/// API key or internet tiles — every stop is drawn from the x/y
+/// coordinates in mock_data.dart, and the bus icon animates smoothly
+/// along the polyline as the simulator advances.
+class LiveMap extends StatelessWidget {
   const LiveMap({super.key});
-
-  @override
-  State<LiveMap> createState() => _LiveMapState();
-}
-
-class _LiveMapState extends State<LiveMap> {
-  GoogleMapController? _controller;
-  bool _fitted = false;
-
-  LatLng _stopLatLng(RouteStop s) => LatLng(s.lat, s.lng);
-
-  LatLng _busPosition(AppState app) {
-    final current = app.stops[app.currentStopIndex];
-    if (app.currentStopIndex >= app.stops.length - 1) return _stopLatLng(current);
-    final next = app.stops[app.currentStopIndex + 1];
-    final t = app.routeProgress;
-    return LatLng(
-      current.lat + (next.lat - current.lat) * t,
-      current.lng + (next.lng - current.lng) * t,
-    );
-  }
-
-  void _fitToRoute(AppState app) {
-    if (_controller == null || _fitted || app.stops.isEmpty) return;
-    final lats = app.stops.map((s) => s.lat);
-    final lngs = app.stops.map((s) => s.lng);
-    final bounds = LatLngBounds(
-      southwest: LatLng(lats.reduce((a, b) => a < b ? a : b), lngs.reduce((a, b) => a < b ? a : b)),
-      northeast: LatLng(lats.reduce((a, b) => a > b ? a : b), lngs.reduce((a, b) => a > b ? a : b)),
-    );
-    _controller!.animateCamera(CameraUpdate.newLatLngBounds(bounds, 48));
-    _fitted = true;
-  }
 
   @override
   Widget build(BuildContext context) {
     final app = context.watch<AppState>();
-    final busPos = _busPosition(app);
-
-    final routePoints = app.stops.map(_stopLatLng).toList();
-    final travelledPoints = [
-      ...app.stops.take(app.currentStopIndex + 1).map(_stopLatLng),
-      busPos,
-    ];
-
-    final markers = <Marker>{
-      for (final s in app.stops)
-        Marker(
-          markerId: MarkerId(s.id),
-          position: _stopLatLng(s),
-          infoWindow: InfoWindow(title: '${s.name} (${s.id})'),
-          icon: BitmapDescriptor.defaultMarkerWithHue(
-            app.stops.indexOf(s) <= app.currentStopIndex
-                ? BitmapDescriptor.hueGreen
-                : BitmapDescriptor.hueAzure,
-          ),
-        ),
-      Marker(
-        markerId: const MarkerId('bus'),
-        position: busPos,
-        infoWindow: const InfoWindow(title: 'Bus-01'),
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
-        zIndex: 2,
-      ),
-    };
+    final l10n = AppLocalizations.of(context);
 
     return Container(
       decoration: panelDecoration(),
@@ -89,52 +24,115 @@ class _LiveMapState extends State<LiveMap> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(Icons.map_outlined, size: 16, color: AppColors.blue),
-              SizedBox(width: 6),
-              Text('LIVE BUS LOCATION',
-                  style: TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 1.2)),
+              const Icon(Icons.map_outlined, size: 16, color: AppColors.blue),
+              const SizedBox(width: 6),
+              Text(
+                l10n.liveMapTitle,
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 1.2,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 10),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: AspectRatio(
-              aspectRatio: 16 / 9,
-              child: GoogleMap(
-                initialCameraPosition: CameraPosition(target: routePoints.first, zoom: 12.5),
-                onMapCreated: (c) {
-                  _controller = c;
-                  _fitToRoute(app);
-                },
-                markers: markers,
-                polylines: {
-                  Polyline(
-                    polylineId: const PolylineId('full-route'),
-                    points: routePoints,
-                    color: AppColors.border,
-                    width: 3,
+          AspectRatio(
+            aspectRatio: 16 / 9,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return CustomPaint(
+                  size: Size(constraints.maxWidth, constraints.maxHeight),
+                  painter: _RoutePainter(
+                    stops: app.stops,
+                    currentIndex: app.currentStopIndex,
+                    progress: app.routeProgress,
                   ),
-                  Polyline(
-                    polylineId: const PolylineId('travelled'),
-                    points: travelledPoints,
-                    color: AppColors.green,
-                    width: 4,
-                  ),
-                },
-                myLocationButtonEnabled: false,
-                zoomControlsEnabled: false,
-                mapToolbarEnabled: false,
-              ),
+                );
+              },
             ),
           ),
         ],
       ),
     );
   }
+}
+
+class _RoutePainter extends CustomPainter {
+  final List<RouteStop> stops;
+  final int currentIndex;
+  final double progress;
+
+  _RoutePainter({required this.stops, required this.currentIndex, required this.progress});
+
+  Offset _pt(int i, Size size) => Offset(stops[i].x * size.width, stops[i].y * size.height);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final bg = Paint()..color = const Color(0xFF0E1620);
+    canvas.drawRRect(
+        RRect.fromRectAndRadius(Offset.zero & size, const Radius.circular(10)), bg);
+
+    final linePaint = Paint()
+      ..color = AppColors.border
+      ..strokeWidth = 3
+      ..style = PaintingStyle.stroke;
+    final path = Path()..moveTo(_pt(0, size).dx, _pt(0, size).dy);
+    for (int i = 1; i < stops.length; i++) {
+      path.lineTo(_pt(i, size).dx, _pt(i, size).dy);
+    }
+    canvas.drawPath(path, linePaint);
+
+    final travelled = Paint()
+      ..color = AppColors.green
+      ..strokeWidth = 3
+      ..style = PaintingStyle.stroke;
+    final tPath = Path()..moveTo(_pt(0, size).dx, _pt(0, size).dy);
+    for (int i = 1; i <= currentIndex; i++) {
+      tPath.lineTo(_pt(i, size).dx, _pt(i, size).dy);
+    }
+    if (currentIndex < stops.length - 1) {
+      final a = _pt(currentIndex, size);
+      final b = _pt(currentIndex + 1, size);
+      tPath.lineTo(a.dx + (b.dx - a.dx) * progress, a.dy + (b.dy - a.dy) * progress);
+    }
+    canvas.drawPath(tPath, travelled);
+
+    for (int i = 0; i < stops.length; i++) {
+      final p = _pt(i, size);
+      final isPast = i <= currentIndex;
+      canvas.drawCircle(p, 6, Paint()..color = isPast ? AppColors.green : AppColors.border);
+      canvas.drawCircle(p, 6, Paint()
+        ..color = AppColors.bg
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2);
+
+      final tp = TextPainter(
+        text: TextSpan(
+          text: stops[i].id,
+          style: const TextStyle(color: AppColors.textSecondary, fontSize: 10),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      tp.paint(canvas, p + const Offset(8, -14));
+    }
+
+    Offset busPos;
+    if (currentIndex < stops.length - 1) {
+      final a = _pt(currentIndex, size);
+      final b = _pt(currentIndex + 1, size);
+      busPos = Offset(a.dx + (b.dx - a.dx) * progress, a.dy + (b.dy - a.dy) * progress);
+    } else {
+      busPos = _pt(currentIndex, size);
+    }
+    canvas.drawCircle(busPos, 9, Paint()..color = AppColors.amber.withOpacity(0.25));
+    canvas.drawCircle(busPos, 5.5, Paint()..color = AppColors.amber);
+  }
+
+  @override
+  bool shouldRepaint(covariant _RoutePainter oldDelegate) =>
+      oldDelegate.currentIndex != currentIndex || oldDelegate.progress != progress;
 }

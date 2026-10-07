@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
-import '../services/telemetry_server.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 
@@ -47,8 +46,13 @@ class _TelemetryPanelState extends State<TelemetryPanel> {
           ),
           const SizedBox(height: 12),
           _statusRow('ESP32 -> /api/bus/telemetry', t.esp32Connected),
-          _statusRow('GPS — Neo-6M', t.gpsOk),
+          _statusRow('GPS — prototype only', t.gpsOk),
           _statusRow('IR Passenger Counter', t.irOk),
+          const SizedBox(height: 8),
+          const Text(
+            'Prototype note: this project uses a fixed/schematic route; real GPS movement is not required.',
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 10),
+          ),
           const SizedBox(height: 12),
           Text(
             'Server: 0.0.0.0:${app.serverPort}${app.telemetryServer.isRunning ? '  (running)' : '  (stopped — tap Start Simulator once)'}',
@@ -75,8 +79,7 @@ class _TelemetryPanelState extends State<TelemetryPanel> {
               IconButton(
                 tooltip: 'Refresh',
                 onPressed: () async {
-                  app.localIps = await TelemetryServer.localIpAddresses();
-                  app.notifyListeners();
+                  await app.refreshLocalIps();
                 },
                 icon: const Icon(Icons.refresh, size: 16, color: AppColors.textSecondary),
                 padding: EdgeInsets.zero,
@@ -131,9 +134,9 @@ class _TelemetryPanelState extends State<TelemetryPanel> {
               const SizedBox(width: 8),
               ElevatedButton(
                 onPressed: () {
-                  app.esp32Ip = ipCtrl.text.trim();
+                  app.setNodeMcuIp(ipCtrl.text.trim());
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('ESP32 IP saved')),
+                    const SnackBar(content: Text('ESP32 / NodeMCU IP saved & Polling started')),
                   );
                 },
                 style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 12)),

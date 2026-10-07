@@ -54,7 +54,7 @@ class SmartBusApp extends StatelessWidget {
           theme: appTheme,
           // --- Localization (English + Kannada) -----------------------------
           locale: app.locale,
-          supportedLocales: const [Locale('en'), Locale('kn')],
+          supportedLocales: const [Locale('en'), Locale('kn'), Locale('hi')],
           localizationsDelegates: const [
             AppLocalizations.delegate,          // our own strings (l10n.yaml + .arb files)
             GlobalMaterialLocalizations.delegate, // built-in Material widget strings (date pickers, etc.)

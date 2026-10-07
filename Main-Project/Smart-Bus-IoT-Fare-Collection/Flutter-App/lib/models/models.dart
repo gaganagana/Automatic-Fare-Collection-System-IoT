@@ -5,13 +5,25 @@ class RfidWallet {
   final String uid; // hex UID as read by the MFRC522, e.g. "CAFEBABE"
   String holderName;
   double balance;
+  bool active; // true = card can be used for travel
   bool onboard; // true = currently on the bus (last tap was a Boarding)
+  final bool isDemo; // true only for simulator/test cards
+  String? entryStop;
+  String? recentExit;
+  double? lastFare;
+  DateTime? transactionTime;
 
   RfidWallet({
     required this.uid,
     required this.holderName,
     required this.balance,
+    this.active = true,
     this.onboard = false,
+    this.isDemo = false,
+    this.entryStop,
+    this.recentExit,
+    this.lastFare,
+    this.transactionTime,
   });
 }
 
@@ -41,6 +53,10 @@ class FareTransaction {
   final String stop;
   final double amount; // negative = debit, positive = credit
   final double balanceAfter;
+  final String? entryStop;
+  final String? exitStop;
+  final int? stopsTravelled;
+  final String? reason; // e.g. INVALID_CARD or LOW_BALANCE
 
   FareTransaction({
     required this.time,
@@ -50,6 +66,10 @@ class FareTransaction {
     required this.stop,
     required this.amount,
     required this.balanceAfter,
+    this.entryStop,
+    this.exitStop,
+    this.stopsTravelled,
+    this.reason,
   });
 }
 
@@ -74,6 +94,22 @@ class RouteStop {
     required this.lat,
     required this.lng,
   });
+}
+
+
+enum TrafficLevel { low, medium, high }
+
+extension TrafficLevelLabel on TrafficLevel {
+  String get label {
+    switch (this) {
+      case TrafficLevel.low:
+        return 'LOW';
+      case TrafficLevel.medium:
+        return 'MEDIUM';
+      case TrafficLevel.high:
+        return 'HIGH';
+    }
+  }
 }
 
 enum UserRole { admin, passenger }

@@ -1,0 +1,131 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 600" width="1000" height="600" style="background:#ffffff; font-family: 'Segoe UI', Arial, sans-serif;">
+  <defs>
+    <filter id="shadow2" x="-5%" y="-5%" width="110%" height="110%">
+      <feDropShadow dx="2" dy="2" stdDeviation="2.5" flood-opacity="0.12"/>
+    </filter>
+    <marker id="arr2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#0f766e"/>
+    </marker>
+  </defs>
+
+  <!-- Header -->
+  <rect x="20" y="15" width="960" height="45" rx="6" fill="#0f766e"/>
+  <text x="500" y="44" fill="#ffffff" font-size="18" font-weight="bold" text-anchor="middle" letter-spacing="1">DFD LEVEL 2: PROCESS 2.0 (AUTOMATED FARE &amp; TICKETING ENGINE)</text>
+
+  <!-- Input: Authenticated Tap Event -->
+  <rect x="40" y="100" width="140" height="55" rx="5" fill="#f8fafc" stroke="#0284c7" stroke-width="2"/>
+  <text x="110" y="123" fill="#0369a1" font-size="11" font-weight="bold" text-anchor="middle">AUTHENTICATED</text>
+  <text x="110" y="140" fill="#0369a1" font-size="11" font-weight="bold" text-anchor="middle">RFID TAP (UID)</text>
+
+  <!-- Sub-process 2.1: Check Tap State -->
+  <g filter="url(#shadow2)">
+    <rect x="230" y="90" width="180" height="75" rx="15" fill="#0f766e" stroke="#115e59" stroke-width="2"/>
+    <text x="320" y="118" fill="#ffffff" font-size="12" font-weight="bold" text-anchor="middle">2.1 Determine Tap</text>
+    <text x="320" y="136" fill="#ffffff" font-size="12" font-weight="bold" text-anchor="middle">Mode (Entry/Exit)</text>
+    <text x="320" y="152" fill="#ccfbf1" font-size="9" text-anchor="middle">Inspect onboard flag</text>
+  </g>
+
+  <!-- Sub-process 2.2: Process Entry Tap -->
+  <g filter="url(#shadow2)">
+    <rect x="480" y="90" width="190" height="75" rx="15" fill="#0369a1" stroke="#075985" stroke-width="2"/>
+    <text x="575" y="118" fill="#ffffff" font-size="12" font-weight="bold" text-anchor="middle">2.2 Boarding Validation</text>
+    <text x="575" y="136" fill="#ffffff" font-size="12" font-weight="bold" text-anchor="middle">&amp; Origin Tagging</text>
+    <text x="575" y="152" fill="#e0f2fe" font-size="9" text-anchor="middle">Record S_entry, onboard=true</text>
+  </g>
+
+  <!-- Sub-process 2.3: Calculate Distance -->
+  <g filter="url(#shadow2)">
+    <rect x="230" y="260" width="180" height="75" rx="15" fill="#0f766e" stroke="#115e59" stroke-width="2"/>
+    <text x="320" y="288" fill="#ffffff" font-size="12" font-weight="bold" text-anchor="middle">2.3 Retrieve Journey</text>
+    <text x="320" y="306" fill="#ffffff" font-size="12" font-weight="bold" text-anchor="middle">Stop Indices</text>
+    <text x="320" y="322" fill="#ccfbf1" font-size="9" text-anchor="middle">Fetch S_entry &amp; S_exit</text>
+  </g>
+
+  <!-- Sub-process 2.4: Compute Flat Fare -->
+  <g filter="url(#shadow2)">
+    <rect x="480" y="260" width="190" height="75" rx="15" fill="#0f766e" stroke="#115e59" stroke-width="2"/>
+    <text x="575" y="288" fill="#ffffff" font-size="12" font-weight="bold" text-anchor="middle">2.4 Compute Fare</text>
+    <text x="575" y="306" fill="#ffffff" font-size="12" font-weight="bold" text-anchor="middle">Rate (₹10 / Stop)</text>
+    <text x="575" y="322" fill="#ccfbf1" font-size="9" text-anchor="middle">Fare = |S_exit - S_entry| * ₹10</text>
+  </g>
+
+  <!-- Sub-process 2.5: Wallet Debit -->
+  <g filter="url(#shadow2)">
+    <rect x="740" y="260" width="190" height="75" rx="15" fill="#0f766e" stroke="#115e59" stroke-width="2"/>
+    <text x="835" y="288" fill="#ffffff" font-size="12" font-weight="bold" text-anchor="middle">2.5 Debit Balance &amp;</text>
+    <text x="835" y="306" fill="#ffffff" font-size="12" font-weight="bold" text-anchor="middle">Reset Onboard State</text>
+    <text x="835" y="322" fill="#ccfbf1" font-size="9" text-anchor="middle">Balance = Balance - Fare</text>
+  </g>
+
+  <!-- Sub-process 2.6: Log Audit Transaction -->
+  <g filter="url(#shadow2)">
+    <rect x="480" y="440" width="190" height="75" rx="15" fill="#b45309" stroke="#92400e" stroke-width="2"/>
+    <text x="575" y="468" fill="#ffffff" font-size="12" font-weight="bold" text-anchor="middle">2.6 Generate Audit Log</text>
+    <text x="575" y="486" fill="#ffffff" font-size="12" font-weight="bold" text-anchor="middle">&amp; Cloud Telemetry</text>
+    <text x="575" y="502" fill="#fef3c7" font-size="9" text-anchor="middle">Post to Firebase &amp; Port 8080</text>
+  </g>
+
+  <!-- DATA STORES -->
+  <!-- D1: Wallet DB -->
+  <g>
+    <line x1="740" y1="100" x2="900" y2="100" stroke="#0284c7" stroke-width="2.5"/>
+    <line x1="740" y1="145" x2="900" y2="145" stroke="#0284c7" stroke-width="2.5"/>
+    <rect x="740" y="100" width="160" height="45" fill="#f0f9ff"/>
+    <text x="755" y="127" fill="#0369a1" font-size="11" font-weight="bold">D1</text>
+    <text x="780" y="127" fill="#0f172a" font-size="11" font-weight="bold">RFID Wallet DB</text>
+  </g>
+
+  <!-- D2: Stops DB -->
+  <g>
+    <line x1="40" y1="275" x2="180" y2="275" stroke="#0f766e" stroke-width="2.5"/>
+    <line x1="40" y1="320" x2="180" y2="320" stroke="#0f766e" stroke-width="2.5"/>
+    <rect x="40" y="275" width="140" height="45" fill="#f0fdfa"/>
+    <text x="55" y="302" fill="#115e59" font-size="11" font-weight="bold">D2</text>
+    <text x="80" y="302" fill="#0f172a" font-size="11" font-weight="bold">18 Stops DB</text>
+  </g>
+
+  <!-- D3: Transaction Logs DB -->
+  <g>
+    <line x1="740" y1="455" x2="900" y2="455" stroke="#b45309" stroke-width="2.5"/>
+    <line x1="740" y1="500" x2="900" y2="500" stroke="#b45309" stroke-width="2.5"/>
+    <rect x="740" y="455" width="160" height="45" fill="#fffbeb"/>
+    <text x="755" y="482" fill="#92400e" font-size="11" font-weight="bold">D3</text>
+    <text x="780" y="482" fill="#0f172a" font-size="11" font-weight="bold">Transaction DB</text>
+  </g>
+
+  <!-- Connectors -->
+  <line x1="180" y1="127" x2="225" y2="127" stroke="#0f766e" stroke-width="2" marker-end="url(#arr2)"/>
+  <line x1="410" y1="127" x2="475" y2="127" stroke="#0f766e" stroke-width="2" marker-end="url(#arr2)"/>
+  <text x="445" y="120" font-size="8.5" fill="#0f766e" text-anchor="middle">[If Entry]</text>
+
+  <line x1="670" y1="127" x2="735" y2="127" stroke="#0284c7" stroke-width="2" marker-end="url(#arr2)"/>
+  <text x="702" y="120" font-size="8.5" fill="#0284c7" text-anchor="middle">Save Entry</text>
+
+  <!-- 2.1 to 2.3 [If Exit] -->
+  <line x1="320" y1="165" x2="320" y2="255" stroke="#0f766e" stroke-width="2" marker-end="url(#arr2)"/>
+  <text x="325" y="210" font-size="8.5" fill="#0f766e">[If Exit]</text>
+
+  <!-- D2 to 2.3 -->
+  <line x1="180" y1="297" x2="225" y2="297" stroke="#0f766e" stroke-width="2" marker-end="url(#arr2)"/>
+  <text x="202" y="290" font-size="8.5" fill="#0f766e" text-anchor="middle">Lookup</text>
+
+  <!-- 2.3 to 2.4 -->
+  <line x1="410" y1="297" x2="475" y2="297" stroke="#0f766e" stroke-width="2" marker-end="url(#arr2)"/>
+  <text x="445" y="290" font-size="8.5" fill="#0f766e" text-anchor="middle">Stop Count</text>
+
+  <!-- 2.4 to 2.5 -->
+  <line x1="670" y1="297" x2="735" y2="297" stroke="#0f766e" stroke-width="2" marker-end="url(#arr2)"/>
+  <text x="702" y="290" font-size="8.5" fill="#0f766e" text-anchor="middle">Fare Amt</text>
+
+  <!-- 2.5 to D1 (Update balance) -->
+  <line x1="835" y1="260" x2="835" y2="150" stroke="#0284c7" stroke-width="2" marker-end="url(#arr2)"/>
+  <text x="840" y="205" font-size="8.5" fill="#0284c7">Write Balance</text>
+
+  <!-- 2.5 to 2.6 -->
+  <path d="M 740 315 C 690 350, 620 380, 585 435" fill="none" stroke="#b45309" stroke-width="2" marker-end="url(#arr2)"/>
+  <text x="660" y="380" font-size="8.5" fill="#b45309">Success Tx</text>
+
+  <!-- 2.6 to D3 -->
+  <line x1="670" y1="477" x2="735" y2="477" stroke="#b45309" stroke-width="2" marker-end="url(#arr2)"/>
+  <text x="702" y="470" font-size="8.5" fill="#b45309" text-anchor="middle">Store Log</text>
+</svg>

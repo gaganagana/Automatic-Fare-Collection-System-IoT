@@ -30,12 +30,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
     final app = context.read<AppState>();
     final uid = uidCtrl.text.trim().toUpperCase();
-    final walletExists = app.wallets.any((w) => w.uid == uid);
-    if (!walletExists) {
-      setState(() => localError =
-          'That RFID UID isn\'t registered yet. Ask the admin to add it under "Register New RFID" first.');
-      return;
-    }
     setState(() {
       loading = true;
       localError = null;
@@ -72,9 +66,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'This creates a real account with Firebase Authentication. '
-                    'Link it to an RFID card UID already registered by the admin '
-                    '(or ask the admin to add your card first).',
+                    'This creates your passenger account. Enter your RFID card UID '
+                    '(e.g. 5402BBA9, 63E6D51D, F0C27F5F, or your physical RFID card) '
+                    'to automatically activate your Smart Bus card.',
                     style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
                   ),
                   const SizedBox(height: 20),

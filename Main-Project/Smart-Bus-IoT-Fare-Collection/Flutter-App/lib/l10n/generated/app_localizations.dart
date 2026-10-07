@@ -6,6 +6,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/intl.dart' as intl;
 
 import 'app_localizations_en.dart';
+import 'app_localizations_hi.dart';
 import 'app_localizations_kn.dart';
 
 // ignore_for_file: type=lint
@@ -95,6 +96,7 @@ abstract class AppLocalizations {
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[
     Locale('en'),
+    Locale('hi'),
     Locale('kn')
   ];
 
@@ -188,6 +190,30 @@ abstract class AppLocalizations {
   /// **'Exited'**
   String get exitedLabel;
 
+  /// No description provided for @trafficLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Traffic'**
+  String get trafficLabel;
+
+  /// No description provided for @trafficLow.
+  ///
+  /// In en, this message translates to:
+  /// **'Low'**
+  String get trafficLow;
+
+  /// No description provided for @trafficMedium.
+  ///
+  /// In en, this message translates to:
+  /// **'Medium'**
+  String get trafficMedium;
+
+  /// No description provided for @trafficHigh.
+  ///
+  /// In en, this message translates to:
+  /// **'High'**
+  String get trafficHigh;
+
   /// No description provided for @currentStopLabel.
   ///
   /// In en, this message translates to:
@@ -199,6 +225,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Next Stop Announcement'**
   String get nextStopLabel;
+
+  /// No description provided for @currentRoute.
+  ///
+  /// In en, this message translates to:
+  /// **'CURRENT ROUTE'**
+  String get currentRoute;
+
+  /// No description provided for @activeTransit.
+  ///
+  /// In en, this message translates to:
+  /// **'ACTIVE TRANSIT'**
+  String get activeTransit;
+
+  /// No description provided for @routeSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Kempegowda BS → BTM Layout (18 Stops)'**
+  String get routeSummary;
+
+  /// No description provided for @fareRate.
+  ///
+  /// In en, this message translates to:
+  /// **'Fare: ₹10 per stop'**
+  String get fareRate;
+
+  /// No description provided for @liveMapTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'LIVE BUS ROUTE MAP'**
+  String get liveMapTitle;
+
+  /// No description provided for @speedKmh.
+  ///
+  /// In en, this message translates to:
+  /// **'km/h'**
+  String get speedKmh;
 
   /// No description provided for @startSimulator.
   ///
@@ -277,6 +339,624 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Voice announcements'**
   String get ttsToggleLabel;
+
+  /// No description provided for @controlRoomTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'SMART BUS - CONTROL ROOM'**
+  String get controlRoomTitle;
+
+  /// No description provided for @adminPortal.
+  ///
+  /// In en, this message translates to:
+  /// **'Admin Dashboard'**
+  String get adminPortal;
+
+  /// No description provided for @passengerPortal.
+  ///
+  /// In en, this message translates to:
+  /// **'Passenger Portal'**
+  String get passengerPortal;
+
+  /// No description provided for @passengerManagement.
+  ///
+  /// In en, this message translates to:
+  /// **'Passenger Management'**
+  String get passengerManagement;
+
+  /// No description provided for @noPassengers.
+  ///
+  /// In en, this message translates to:
+  /// **'No passengers registered yet.'**
+  String get noPassengers;
+
+  /// No description provided for @addPassenger.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Passenger'**
+  String get addPassenger;
+
+  /// No description provided for @deletePassenger.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete passenger'**
+  String get deletePassenger;
+
+  /// No description provided for @confirmDeletePassenger.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove {name} from the Smart Bus system?'**
+  String confirmDeletePassenger(String name);
+
+  /// No description provided for @cancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get cancel;
+
+  /// No description provided for @delete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get delete;
+
+  /// No description provided for @passengerName.
+  ///
+  /// In en, this message translates to:
+  /// **'Passenger name'**
+  String get passengerName;
+
+  /// No description provided for @temporaryPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Temporary password (min 6 characters)'**
+  String get temporaryPassword;
+
+  /// No description provided for @registeredRfidUid.
+  ///
+  /// In en, this message translates to:
+  /// **'Registered RFID UID'**
+  String get registeredRfidUid;
+
+  /// No description provided for @addPassengerButton.
+  ///
+  /// In en, this message translates to:
+  /// **'ADD PASSENGER'**
+  String get addPassengerButton;
+
+  /// No description provided for @passengerAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'Passenger added successfully.'**
+  String get passengerAdded;
+
+  /// No description provided for @mySmartCard.
+  ///
+  /// In en, this message translates to:
+  /// **'MY SMART CARD'**
+  String get mySmartCard;
+
+  /// No description provided for @noCardLinked.
+  ///
+  /// In en, this message translates to:
+  /// **'No card linked to this account.'**
+  String get noCardLinked;
+
+  /// No description provided for @currentlyOnboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Status: Currently onboard'**
+  String get currentlyOnboard;
+
+  /// No description provided for @notOnTrip.
+  ///
+  /// In en, this message translates to:
+  /// **'Status: Not on a trip'**
+  String get notOnTrip;
+
+  /// No description provided for @rechargeMyCard.
+  ///
+  /// In en, this message translates to:
+  /// **'RECHARGE MY CARD'**
+  String get rechargeMyCard;
+
+  /// No description provided for @myTripHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'MY TRIP HISTORY'**
+  String get myTripHistory;
+
+  /// No description provided for @noTransactions.
+  ///
+  /// In en, this message translates to:
+  /// **'No transactions yet.'**
+  String get noTransactions;
+
+  /// No description provided for @rechargeCardTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Recharge Card'**
+  String get rechargeCardTitle;
+
+  /// No description provided for @amountRupees.
+  ///
+  /// In en, this message translates to:
+  /// **'Amount (₹)'**
+  String get amountRupees;
+
+  /// No description provided for @payAndRecharge.
+  ///
+  /// In en, this message translates to:
+  /// **'PAY & RECHARGE'**
+  String get payAndRecharge;
+
+  /// No description provided for @rfidWallets.
+  ///
+  /// In en, this message translates to:
+  /// **'RFID WALLETS'**
+  String get rfidWallets;
+
+  /// No description provided for @noRegisteredCards.
+  ///
+  /// In en, this message translates to:
+  /// **'No registered RFID cards yet.'**
+  String get noRegisteredCards;
+
+  /// No description provided for @registerNewRfid.
+  ///
+  /// In en, this message translates to:
+  /// **'REGISTER NEW RFID'**
+  String get registerNewRfid;
+
+  /// No description provided for @registerNewRfidTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Register New RFID Card'**
+  String get registerNewRfidTitle;
+
+  /// No description provided for @cardUidHex.
+  ///
+  /// In en, this message translates to:
+  /// **'Card UID (Hex)'**
+  String get cardUidHex;
+
+  /// No description provided for @holderName.
+  ///
+  /// In en, this message translates to:
+  /// **'Holder Name'**
+  String get holderName;
+
+  /// No description provided for @addCard.
+  ///
+  /// In en, this message translates to:
+  /// **'ADD CARD'**
+  String get addCard;
+
+  /// No description provided for @noRealCards.
+  ///
+  /// In en, this message translates to:
+  /// **'Register a real RFID card before adding a passenger.'**
+  String get noRealCards;
+
+  /// No description provided for @cardActive.
+  ///
+  /// In en, this message translates to:
+  /// **'ACTIVE'**
+  String get cardActive;
+
+  /// No description provided for @cardInactive.
+  ///
+  /// In en, this message translates to:
+  /// **'INACTIVE'**
+  String get cardInactive;
+
+  /// No description provided for @cardOnboard.
+  ///
+  /// In en, this message translates to:
+  /// **'ONBOARD'**
+  String get cardOnboard;
+
+  /// No description provided for @searchPassenger.
+  ///
+  /// In en, this message translates to:
+  /// **'Search passenger or UID...'**
+  String get searchPassenger;
+
+  /// No description provided for @noMatchFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No matching passenger or card found.'**
+  String get noMatchFound;
+
+  /// No description provided for @transactionsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'RFID TRANSACTIONS & FARE AUDIT'**
+  String get transactionsTitle;
+
+  /// No description provided for @colTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Time'**
+  String get colTime;
+
+  /// No description provided for @colPassenger.
+  ///
+  /// In en, this message translates to:
+  /// **'Passenger'**
+  String get colPassenger;
+
+  /// No description provided for @colUid.
+  ///
+  /// In en, this message translates to:
+  /// **'Card UID'**
+  String get colUid;
+
+  /// No description provided for @colType.
+  ///
+  /// In en, this message translates to:
+  /// **'Type'**
+  String get colType;
+
+  /// No description provided for @colStop.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop / Route'**
+  String get colStop;
+
+  /// No description provided for @colAmount.
+  ///
+  /// In en, this message translates to:
+  /// **'Amount'**
+  String get colAmount;
+
+  /// No description provided for @colBalance.
+  ///
+  /// In en, this message translates to:
+  /// **'Balance'**
+  String get colBalance;
+
+  /// No description provided for @typeBoarding.
+  ///
+  /// In en, this message translates to:
+  /// **'BOARDING'**
+  String get typeBoarding;
+
+  /// No description provided for @typeExit.
+  ///
+  /// In en, this message translates to:
+  /// **'EXIT'**
+  String get typeExit;
+
+  /// No description provided for @typeRecharge.
+  ///
+  /// In en, this message translates to:
+  /// **'RECHARGE'**
+  String get typeRecharge;
+
+  /// No description provided for @typeDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'DENIED'**
+  String get typeDenied;
+
+  /// No description provided for @reasonLowBalance.
+  ///
+  /// In en, this message translates to:
+  /// **'Low Balance'**
+  String get reasonLowBalance;
+
+  /// No description provided for @reasonDeactivated.
+  ///
+  /// In en, this message translates to:
+  /// **'Deactivated Card'**
+  String get reasonDeactivated;
+
+  /// No description provided for @reasonInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Unregistered Card'**
+  String get reasonInvalid;
+
+  /// No description provided for @passengerHistoryTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'PASSENGER JOURNEY AUDIT'**
+  String get passengerHistoryTitle;
+
+  /// No description provided for @aiAssistantTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'AI & ML ROUTE CHATBOT'**
+  String get aiAssistantTitle;
+
+  /// No description provided for @aiAssistantSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask about BMTC routes (600F, 500D, 335E, 365, 25A), timings, ₹10/stop fares & card info.'**
+  String get aiAssistantSubtitle;
+
+  /// No description provided for @askHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask in Kannada, Hindi, or English (e.g. 600F route)...'**
+  String get askHint;
+
+  /// No description provided for @voiceQuery.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice Query'**
+  String get voiceQuery;
+
+  /// No description provided for @listening.
+  ///
+  /// In en, this message translates to:
+  /// **'Listening... Speak your query'**
+  String get listening;
+
+  /// No description provided for @quickPromptsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Quick Queries'**
+  String get quickPromptsTitle;
+
+  /// No description provided for @promptNextStop.
+  ///
+  /// In en, this message translates to:
+  /// **'Next stop'**
+  String get promptNextStop;
+
+  /// No description provided for @promptBalance.
+  ///
+  /// In en, this message translates to:
+  /// **'My card balance'**
+  String get promptBalance;
+
+  /// No description provided for @promptFare.
+  ///
+  /// In en, this message translates to:
+  /// **'Fare to KR Circle'**
+  String get promptFare;
+
+  /// No description provided for @promptCardStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'My card status'**
+  String get promptCardStatus;
+
+  /// No description provided for @promptRoute600F.
+  ///
+  /// In en, this message translates to:
+  /// **'600F Route'**
+  String get promptRoute600F;
+
+  /// No description provided for @promptRoute500D.
+  ///
+  /// In en, this message translates to:
+  /// **'500D Route'**
+  String get promptRoute500D;
+
+  /// No description provided for @promptRoute335E.
+  ///
+  /// In en, this message translates to:
+  /// **'335E Route'**
+  String get promptRoute335E;
+
+  /// No description provided for @promptRoute365.
+  ///
+  /// In en, this message translates to:
+  /// **'365 Route'**
+  String get promptRoute365;
+
+  /// No description provided for @promptRoute25A.
+  ///
+  /// In en, this message translates to:
+  /// **'25A Route'**
+  String get promptRoute25A;
+
+  /// No description provided for @promptFareRule.
+  ///
+  /// In en, this message translates to:
+  /// **'₹10 Fare Rule'**
+  String get promptFareRule;
+
+  /// No description provided for @clearChat.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear Chat'**
+  String get clearChat;
+
+  /// No description provided for @sendButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Send'**
+  String get sendButton;
+
+  /// No description provided for @speaking.
+  ///
+  /// In en, this message translates to:
+  /// **'Speaking...'**
+  String get speaking;
+
+  /// No description provided for @listenAudio.
+  ///
+  /// In en, this message translates to:
+  /// **'Listen'**
+  String get listenAudio;
+
+  /// No description provided for @routeTimelineTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'BENGALURU ROUTE STOPS (18 STOPS)'**
+  String get routeTimelineTitle;
+
+  /// No description provided for @farePerStop.
+  ///
+  /// In en, this message translates to:
+  /// **'₹10 / stop'**
+  String get farePerStop;
+
+  /// No description provided for @profileTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'User Profile'**
+  String get profileTitle;
+
+  /// No description provided for @settingsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'System Settings'**
+  String get settingsTitle;
+
+  /// No description provided for @logoutButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Logout'**
+  String get logoutButton;
+
+  /// No description provided for @roleLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Role'**
+  String get roleLabel;
+
+  /// No description provided for @emailAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Email Address'**
+  String get emailAddress;
+
+  /// No description provided for @linkedRfidCard.
+  ///
+  /// In en, this message translates to:
+  /// **'Linked RFID Card'**
+  String get linkedRfidCard;
+
+  /// No description provided for @connected.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected'**
+  String get connected;
+
+  /// No description provided for @disconnected.
+  ///
+  /// In en, this message translates to:
+  /// **'Disconnected'**
+  String get disconnected;
+
+  /// No description provided for @hardwareBridge.
+  ///
+  /// In en, this message translates to:
+  /// **'NodeMCU Bridge'**
+  String get hardwareBridge;
+
+  /// No description provided for @tapCardPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap your RFID card on the reader to board'**
+  String get tapCardPrompt;
+
+  /// No description provided for @searchPassengerUid.
+  ///
+  /// In en, this message translates to:
+  /// **'Search passenger / RFID UID'**
+  String get searchPassengerUid;
+
+  /// No description provided for @noPassengerRecords.
+  ///
+  /// In en, this message translates to:
+  /// **'No matching passenger records.'**
+  String get noPassengerRecords;
+
+  /// No description provided for @cardMustBeRegistered.
+  ///
+  /// In en, this message translates to:
+  /// **'The RFID card must already be registered.'**
+  String get cardMustBeRegistered;
+
+  /// No description provided for @enterValidPassengerDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter valid passenger details and a registered RFID UID.'**
+  String get enterValidPassengerDetails;
+
+  /// No description provided for @balanceLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Balance'**
+  String get balanceLabel;
+
+  /// No description provided for @notLinked.
+  ///
+  /// In en, this message translates to:
+  /// **'Not linked'**
+  String get notLinked;
+
+  /// No description provided for @signInTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign In'**
+  String get signInTab;
+
+  /// No description provided for @signUpTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign Up / Register'**
+  String get signUpTab;
+
+  /// No description provided for @fullNameLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Full Name'**
+  String get fullNameLabel;
+
+  /// No description provided for @rfidUidLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Smart Card UID (RFID)'**
+  String get rfidUidLabel;
+
+  /// No description provided for @rfidUidHelper.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g., 5B850B1A from your smart card'**
+  String get rfidUidHelper;
+
+  /// No description provided for @confirmPasswordLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm Password'**
+  String get confirmPasswordLabel;
+
+  /// No description provided for @registerButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Register Card & Account'**
+  String get registerButton;
+
+  /// No description provided for @passwordsDoNotMatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Passwords do not match.'**
+  String get passwordsDoNotMatch;
+
+  /// No description provided for @registrationSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Account and smart card registered successfully!'**
+  String get registrationSuccess;
+
+  /// No description provided for @alreadyHaveAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Already have an account? Sign In'**
+  String get alreadyHaveAccount;
+
+  /// No description provided for @needAccountPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'New passenger? Register your RFID card here'**
+  String get needAccountPrompt;
 }
 
 class _AppLocalizationsDelegate
@@ -290,7 +970,7 @@ class _AppLocalizationsDelegate
 
   @override
   bool isSupported(Locale locale) =>
-      <String>['en', 'kn'].contains(locale.languageCode);
+      <String>['en', 'hi', 'kn'].contains(locale.languageCode);
 
   @override
   bool shouldReload(_AppLocalizationsDelegate old) => false;
@@ -301,6 +981,8 @@ AppLocalizations lookupAppLocalizations(Locale locale) {
   switch (locale.languageCode) {
     case 'en':
       return AppLocalizationsEn();
+    case 'hi':
+      return AppLocalizationsHi();
     case 'kn':
       return AppLocalizationsKn();
   }

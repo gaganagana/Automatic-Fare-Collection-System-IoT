@@ -16,13 +16,13 @@ dependencies:
   shelf: ^1.4.1              # embedded HTTP server that the ESP32 talks to
   shelf_router: ^1.1.4
   http: ^1.2.2                # used by the recharge flow to notify the ESP32
-  intl: ^0.20.2             # date/time + currency formatting, required by l10n codegen
-  flutter_tts: ^4.2.0          # text-to-speech announcements (stop names, fare alerts)
+  intl: ^0.20.3               # date/time + currency formatting, required by l10n codegen
   mailer: ^6.1.0              # sends the real "login" email via SMTP
   firebase_core: ^3.6.0       # required bootstrap for any Firebase package
   firebase_auth: ^5.3.1       # real authentication — passwords hashed/managed by Google
   cloud_firestore: ^5.4.4     # stores each user's role (admin/passenger) + linked RFID uid
-  google_maps_flutter: ^2.9.0  # real Google Maps for the live bus location view
+  razorpay_flutter: ^1.4.5
+  url_launcher: ^6.3.1    # real payment checkout (test mode) for card recharges
 
 dev_dependencies:
   flutter_test:

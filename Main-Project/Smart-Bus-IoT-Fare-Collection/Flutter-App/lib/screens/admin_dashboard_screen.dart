@@ -9,10 +9,12 @@ import '../widgets/header_bar.dart';
 import '../widgets/live_map.dart';
 import '../widgets/metric_card.dart';
 import '../widgets/rfid_wallet_panel.dart';
+import '../widgets/passenger_management_panel.dart';
 import '../widgets/route_timeline.dart';
 import '../widgets/sms_banner.dart';
-import '../widgets/telemetry_panel.dart';
+import '../widgets/ai_assistant_panel.dart';
 import '../widgets/transaction_table.dart';
+import '../widgets/passenger_history_panel.dart';
 
 class AdminDashboardScreen extends StatelessWidget {
   const AdminDashboardScreen({super.key});
@@ -23,53 +25,120 @@ class AdminDashboardScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: const HeaderBar(),
+
       body: Stack(
         children: [
           SingleChildScrollView(
             padding: const EdgeInsets.all(16),
+
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final wide = constraints.maxWidth > 1000;
+
+                // ============================================================
+                // LEFT COLUMN
+                // ============================================================
+
                 final leftColumn = Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Dashboard statistics
                     _MetricsRow(app: app),
+
                     const SizedBox(height: 14),
+
+                    // Current bus route / stop
                     const CurrentRouteBlock(),
+
                     const SizedBox(height: 14),
+
+                    // Live bus map
                     const LiveMap(),
+
                     const SizedBox(height: 14),
+
+                    // RFID transaction history
                     const TransactionTable(),
+
                     const SizedBox(height: 14),
-                    const _DebugTapPanel(),
+
+                    const PassengerHistoryPanel(),
+
+                    const SizedBox(height: 14),
                   ],
                 );
+
+                // ============================================================
+                // RIGHT COLUMN
+                // ============================================================
 
                 final rightColumn = Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: const [
-                    TelemetryPanel(),
+                    // Admin passenger management
+                    PassengerManagementPanel(),
+
                     SizedBox(height: 14),
+
+                    // RFID cards and wallet management
                     RfidWalletPanel(),
+
                     SizedBox(height: 14),
+
+                    // Local/offline AI + ML prototype assistant
+                    AIAssistantPanel(),
+
+                    SizedBox(height: 14),
+
+                    // Complete route stop list
                     RouteTimeline(),
                   ],
                 );
+
+                // ============================================================
+                // DESKTOP / WIDE SCREEN
+                // ============================================================
 
                 if (wide) {
                   return Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(flex: 7, child: leftColumn),
+                      Expanded(
+                        flex: 7,
+                        child: leftColumn,
+                      ),
+
                       const SizedBox(width: 16),
-                      Expanded(flex: 3, child: rightColumn),
+
+                      Expanded(
+                        flex: 3,
+                        child: rightColumn,
+                      ),
                     ],
                   );
                 }
-                return Column(children: [leftColumn, const SizedBox(height: 14), rightColumn]);
+
+                // ============================================================
+                // MOBILE / SMALL SCREEN
+                // ============================================================
+
+                return Column(
+                  children: [
+                    leftColumn,
+
+                    const SizedBox(height: 14),
+
+                    rightColumn,
+                  ],
+                );
               },
             ),
           ),
+
+          // ================================================================
+          // SMS / LOGIN / RFID NOTIFICATION BANNER
+          // ================================================================
+
           const SmsBanner(),
         ],
       ),
@@ -77,116 +146,147 @@ class AdminDashboardScreen extends StatelessWidget {
   }
 }
 
+// ============================================================================
+// DASHBOARD METRICS
+// ============================================================================
+
 class _MetricsRow extends StatelessWidget {
   final AppState app;
-  const _MetricsRow({required this.app});
+
+  const _MetricsRow({
+    required this.app,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    return LayoutBuilder(builder: (context, constraints) {
-      final cards = [
-        MetricCard(
-          label: 'STATUS',
-          value: app.simulatorRunning ? 'MOVING' : 'STOPPED',
-          subValue: app.simulatorRunning ? '${app.speedKmh.toStringAsFixed(0)} km/h' : null,
-          icon: Icons.directions_bus_filled,
-          accent: app.simulatorRunning ? AppColors.green : AppColors.textSecondary,
-          // This is the "make a bus status widget speak its current state
-          // when selected by TalkBack" requirement: excludeSemantics (set
-          // inside MetricCard) hides the raw "MOVING" / "28 km/h" text
-          // nodes and replaces them with one purpose-written sentence.
-          // liveRegion means TalkBack re-announces it automatically every
-          // time speed/stop changes, without the user re-selecting it.
-          semanticLabel: l10n.busStatusSemantic(
-            app.simulatorRunning ? l10n.statusMoving : l10n.statusStopped,
-            app.speedKmh.toStringAsFixed(0),
-            app.currentStop.name,
+    final l10n = AppLocalizations.of(context);
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final cards = [
+          // ================================================================
+          // BUS STATUS
+          // ================================================================
+
+          MetricCard(
+            label: l10n.statusLabel.toUpperCase(),
+            value: app.simulatorRunning
+                ? l10n.statusMoving.toUpperCase()
+                : l10n.statusStopped.toUpperCase(),
+            subValue: app.simulatorRunning
+                ? '${app.speedKmh.toStringAsFixed(0)} ${l10n.speedKmh}'
+                : null,
+            icon: Icons.directions_bus_filled,
+            accent: app.simulatorRunning
+                ? AppColors.green
+                : AppColors.textSecondary,
+            semanticLabel: l10n.busStatusSemantic(
+              app.simulatorRunning
+                  ? l10n.statusMoving
+                  : l10n.statusStopped,
+              app.speedKmh.toStringAsFixed(0),
+              app.localizedStopName(app.currentStop.name),
+            ),
+            liveRegion: true,
           ),
-          liveRegion: true,
-        ),
-        MetricCard(
-          label: 'ONBOARD',
-          value: '${app.onboardCount}',
-          subValue: '/ ${AppState.busCapacity}',
-          icon: Icons.people,
-          accent: AppColors.blue,
-          animatedNumber: app.onboardCount,
-        ),
-        MetricCard(
-          label: 'ENTERED',
-          value: '${app.enteredCount}',
-          icon: Icons.login,
-          accent: AppColors.green,
-          animatedNumber: app.enteredCount,
-        ),
-        MetricCard(
-          label: 'EXITED',
-          value: '${app.exitedCount}',
-          icon: Icons.logout,
-          accent: AppColors.amber,
-          animatedNumber: app.exitedCount,
-        ),
-      ];
-      final wide = constraints.maxWidth > 700;
-      if (wide) {
-        return Row(
-          children: cards
-              .map((c) => Expanded(child: Padding(padding: const EdgeInsets.only(right: 12), child: c)))
-              .toList(),
-        );
-      }
-      return GridView.count(
-        crossAxisCount: 2,
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 12,
-        childAspectRatio: 1.6,
-        children: cards,
-      );
-    });
-  }
-}
 
-/// Lets you demo the whole tap -> APPROVED/DENIED -> fare -> SMS flow
-/// straight from the dashboard, without a physical ESP32 connected.
-class _DebugTapPanel extends StatelessWidget {
-  const _DebugTapPanel();
+          // ================================================================
+          // ONBOARD
+          // ================================================================
 
-  @override
-  Widget build(BuildContext context) {
-    final app = context.watch<AppState>();
-    return Container(
-      decoration: panelDecoration(),
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('SIMULATE RFID TAP (no hardware needed)',
-              style: TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 1)),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: app.wallets.map((w) {
-              return OutlinedButton(
-                onPressed: () => context.read<AppState>().simulateTap(w.uid),
-                style: OutlinedButton.styleFrom(
-                  side: BorderSide(color: w.onboard ? AppColors.green : AppColors.border),
-                  foregroundColor: AppColors.textPrimary,
+          MetricCard(
+            label: l10n.onboardLabel.toUpperCase(),
+            value: '${app.onboardCount}',
+            subValue: '/ ${AppState.busCapacity}',
+            icon: Icons.people,
+            accent: AppColors.blue,
+            animatedNumber: app.onboardCount,
+          ),
+
+          // ================================================================
+          // ENTERED
+          // ================================================================
+
+          MetricCard(
+            label: l10n.enteredLabel.toUpperCase(),
+            value: '${app.enteredCount}',
+            icon: Icons.login,
+            accent: AppColors.green,
+            animatedNumber: app.enteredCount,
+          ),
+
+          // ================================================================
+          // EXITED
+          // ================================================================
+
+          MetricCard(
+            label: l10n.exitedLabel.toUpperCase(),
+            value: '${app.exitedCount}',
+            icon: Icons.logout,
+            accent: AppColors.amber,
+            animatedNumber: app.exitedCount,
+          ),
+
+          MetricCard(
+            label: l10n.trafficLabel.toUpperCase(),
+            value: app.trafficLevel.name == 'high'
+                ? l10n.trafficHigh.toUpperCase()
+                : app.trafficLevel.name == 'medium'
+                    ? l10n.trafficMedium.toUpperCase()
+                    : l10n.trafficLow.toUpperCase(),
+            subValue: '${app.onboardCount}/${AppState.busCapacity}',
+            icon: Icons.groups_2,
+            accent: app.trafficLevel.name == 'high'
+                ? AppColors.red
+                : app.trafficLevel.name == 'medium'
+                    ? AppColors.amber
+                    : AppColors.green,
+          ),
+        ];
+
+        // ================================================================
+        // WIDE SCREEN
+        // ================================================================
+
+        final wide = constraints.maxWidth > 700;
+
+        if (wide) {
+          return Row(
+            children: cards
+                .map(
+                  (card) => Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(
+                    right: 12,
+                  ),
+                  child: card,
                 ),
-                child: Text('${w.holderName} (${w.onboard ? "tap out" : "tap in"})',
-                    style: const TextStyle(fontSize: 11)),
-              );
-            }).toList(),
-          ),
-        ],
-      ),
+              ),
+            )
+                .toList(),
+          );
+        }
+
+        // ================================================================
+        // MOBILE SCREEN
+        // ================================================================
+
+        return GridView.count(
+          crossAxisCount: 2,
+
+          shrinkWrap: true,
+
+          physics: const NeverScrollableScrollPhysics(),
+
+          mainAxisSpacing: 12,
+
+          crossAxisSpacing: 12,
+
+          childAspectRatio: 1.6,
+
+          children: cards,
+        );
+      },
     );
   }
 }

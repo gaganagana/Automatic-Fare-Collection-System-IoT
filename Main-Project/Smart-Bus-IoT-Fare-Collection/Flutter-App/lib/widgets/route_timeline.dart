@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../state/app_state.dart';
+import '../l10n/generated/app_localizations.dart';
 import '../theme.dart';
 
 class RouteTimeline extends StatelessWidget {
@@ -10,22 +11,29 @@ class RouteTimeline extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final app = context.watch<AppState>();
+    final l10n = AppLocalizations.of(context);
+    final isKn = app.locale.languageCode == 'kn';
+    final isHi = app.locale.languageCode == 'hi';
+
     return Container(
       decoration: panelDecoration(),
       padding: const EdgeInsets.all(12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(Icons.alt_route, size: 16, color: AppColors.green),
-              SizedBox(width: 6),
-              Text('ROUTE STOPS',
-                  style: TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 1.2)),
+              const Icon(Icons.alt_route, size: 16, color: AppColors.green),
+              const SizedBox(width: 6),
+              Text(
+                l10n.routeTimelineTitle,
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 1.2,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 10),
@@ -49,21 +57,24 @@ class RouteTimeline extends StatelessWidget {
                           color: isHere
                               ? AppColors.green
                               : isPast
-                                  ? AppColors.green.withOpacity(0.35)
+                                  ? AppColors.green.withValues(alpha: 0.35)
                                   : AppColors.panelAlt,
                           border: Border.all(color: AppColors.border),
                         ),
-                        child: Text('${i + 1}',
-                            style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: isHere ? Colors.black : AppColors.textSecondary)),
+                        child: Text(
+                          '${i + 1}',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: isHere ? Colors.black : AppColors.textSecondary,
+                          ),
+                        ),
                       ),
                       if (i != app.stops.length - 1)
                         Expanded(
                           child: Container(
                             width: 2,
-                            color: isPast ? AppColors.green.withOpacity(0.4) : AppColors.border,
+                            color: isPast ? AppColors.green.withValues(alpha: 0.4) : AppColors.border,
                           ),
                         ),
                     ],
@@ -79,28 +90,39 @@ class RouteTimeline extends StatelessWidget {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(stop.name,
-                                    style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                        color: isHere ? AppColors.green : AppColors.textPrimary)),
+                                Text(
+                                  app.localizedStopName(stop.name),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: isHere ? AppColors.green : AppColors.textPrimary,
+                                  ),
+                                ),
                                 if (isHere)
-                                  const Text('HERE',
-                                      style: TextStyle(
-                                          fontSize: 10,
-                                          color: AppColors.green,
-                                          fontWeight: FontWeight.bold))
+                                  Text(
+                                    isKn ? 'ಇಲ್ಲಿ (ಪ್ರಸ್ತುತ)' : (isHi ? 'यहाँ (वर्तमान)' : 'HERE'),
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      color: AppColors.green,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  )
                                 else if (isNext)
-                                  const Text('NEXT',
-                                      style: TextStyle(
-                                          fontSize: 10,
-                                          color: AppColors.amber,
-                                          fontWeight: FontWeight.bold)),
+                                  Text(
+                                    isKn ? 'ಮುಂದಿನ ನಿಲ್ದಾಣ' : (isHi ? 'अगला स्टॉप' : 'NEXT STOP'),
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      color: AppColors.amber,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
                               ],
                             ),
                           ),
-                          Text(stop.fare == 0 ? '—' : '₹${stop.fare.toStringAsFixed(0)}',
-                              style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                          Text(
+                            stop.fare == 0 ? '—' : '₹${stop.fare.toStringAsFixed(0)}',
+                            style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                          ),
                         ],
                       ),
                     ),

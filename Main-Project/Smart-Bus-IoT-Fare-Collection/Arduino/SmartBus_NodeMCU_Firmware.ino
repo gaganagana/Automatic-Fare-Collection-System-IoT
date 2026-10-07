@@ -76,8 +76,8 @@ struct CardData {
 int cardCount = 7;
 
 CardData localCards[MAX_CARDS] = {
-  {"5402BBA9", "Bhanu",     200, false},
-  {"63E6D51D", "Karthik",   5,   false},   // Inactive/Blocked by default
+  {"5402BBA9", "Bhanu",     10,  false}, // Valid Card (Active: Rs.10 starting balance)
+  {"63E6D51D", "Karthik",   200, false}, // Valid Card (Active)
   {"F0C27F5F", "Gayathri",  200, false},
   {"90444455", "Nharika",   200, false},
   {"5B850B1A", "Kanthesh",  200, false},

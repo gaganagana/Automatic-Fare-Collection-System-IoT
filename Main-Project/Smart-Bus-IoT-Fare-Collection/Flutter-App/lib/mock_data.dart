@@ -7,11 +7,10 @@ import 'models/models.dart';
 /// announces. x/y are normalised 0..1 coordinates for the schematic
 /// live-map widget (no Google Maps API key needed).
 ///
-/// Fare shown here (₹10 flat) is for the DISPLAY-only Route Stops
-/// timeline and the app's own simulated demo wallets. Your physical
-/// hardware computes its own fare as (stops travelled × ₹10) at exit,
-/// using its own on-board card database — the two are intentionally
-/// separate, see SETUP_GUIDE.md section 6 for why.
+/// Fare shown here (₹10 per travelled stop) is for the DISPLAY-only Route Stops
+/// timeline and the prototype's local card state. Physical hardware
+/// remains the source of truth for the real RFID/fare flow; Firestore
+/// mirrors the card and transaction history for the Flutter dashboards.
 final List<RouteStop> kRouteStops = [
   const RouteStop(
       id: 'S01',
@@ -178,8 +177,22 @@ final List<RouteStop> kRouteStops = [
 ];
 
 List<RfidWallet> buildInitialWallets() => [
-      RfidWallet(uid: 'CAFEBABE', holderName: 'Meera Nair', balance: 320),
-      RfidWallet(uid: 'A1B2C3D4', holderName: 'Rohan Kumar', balance: 180),
-      RfidWallet(uid: '9F8E7D6C', holderName: 'Priya Iyer', balance: 60),
-      RfidWallet(uid: '11AA22BB', holderName: 'Arjun Rao', balance: 250),
+      RfidWallet(uid: '5402BBA9', holderName: 'Bhanu Prakash', balance: 10, active: true, isDemo: false),
+      RfidWallet(uid: '63E6D51D', holderName: 'Karthik', balance: 200, active: true, isDemo: false),
+      RfidWallet(uid: 'F0C27F5F', holderName: 'Gayathri', balance: 200, active: true, isDemo: false),
+      RfidWallet(uid: '3D085006', holderName: 'Shyamala', balance: 5, active: true, isDemo: false),
+      RfidWallet(uid: '21DB3E0A', holderName: 'Prema', balance: 50, active: false, isDemo: false),
+      RfidWallet(uid: '5B850B1A', holderName: 'Kanthesh', balance: 200, active: true, isDemo: false),
+      RfidWallet(uid: '90444455', holderName: 'Niharika', balance: 200, active: true, isDemo: false),
+      RfidWallet(uid: 'A1B2C3D4', holderName: 'Rajesh Gowda', balance: 150, active: true, isDemo: false),
+      RfidWallet(uid: 'B2C3D4E5', holderName: 'Sneha Rao', balance: 180, active: true, isDemo: false),
+      RfidWallet(uid: 'C3D4E5F6', holderName: 'Ananya Sharma', balance: 120, active: true, isDemo: false),
+      RfidWallet(uid: 'D4E5F607', holderName: 'Suresh Kumar', balance: 95, active: true, isDemo: false),
+      RfidWallet(uid: 'E5F60718', holderName: 'Pooja N', balance: 220, active: true, isDemo: false),
     ];
+
+/// Initial passenger transaction history starts empty so that only REAL
+/// hardware taps from RFID / NodeMCU populate the history.
+List<FareTransaction> buildPrototypeTransactions() {
+  return <FareTransaction>[];
+}

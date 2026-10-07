@@ -34,14 +34,14 @@ class DefaultFirebaseOptions {
   }
 
   // Placeholder values — flutterfire configure overwrites these.
-  static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'REPLACE_ME',
-    appId: 'REPLACE_ME',
-    messagingSenderId: 'REPLACE_ME',
-    projectId: 'REPLACE_ME',
-    storageBucket: 'REPLACE_ME',
-  );
 
+  static const FirebaseOptions android = FirebaseOptions(
+    apiKey: 'AIzaSyC2lUrv5e4Ec_11wFtHNQrN85iZvQEAlqk',
+    appId: '1:824747099739:android:0a699b0fc9f94ee273617e',
+    messagingSenderId: '824747099739',
+    projectId: 'smart-bus-dashboard',
+    storageBucket: 'smart-bus-dashboard.firebasestorage.app',
+  );
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'REPLACE_ME',
     appId: 'REPLACE_ME',

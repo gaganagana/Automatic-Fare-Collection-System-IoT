@@ -19,8 +19,8 @@ import 'package:mailer/smtp_server.dart';
 /// function) as well.
 class EmailService {
   // ---- EDIT THESE THREE LINES -------------------------------------------
-  static const String senderEmail = 'youraddress@gmail.com';
-  static const String senderAppPassword = 'xxxx xxxx xxxx xxxx';
+  static const String senderEmail = 'smartbuscontrol@gmail.com';
+  static const String senderAppPassword = 'pdma govd dilc tmyc';
   static const String senderName = 'Smart Bus Control Room';
   // -------------------------------------------------------------------------
 

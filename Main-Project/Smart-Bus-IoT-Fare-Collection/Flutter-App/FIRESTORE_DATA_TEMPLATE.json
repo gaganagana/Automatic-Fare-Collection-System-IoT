@@ -1,0 +1,65 @@
+{
+  "cards": [
+    {
+      "uid": "63E6D51D",
+      "holderName": "Karthik",
+      "email": "gaganagana0822@gmail.com",
+      "role": "passenger",
+      "startingBalance": 200,
+      "active": true
+    },
+    {
+      "uid": "F0C27F5F",
+      "holderName": "Gayathri",
+      "email": "",
+      "role": "passenger",
+      "startingBalance": 200,
+      "active": true
+    },
+    {
+      "uid": "90444455",
+      "holderName": "Nharika",
+      "email": "niharikarm123@gmail.com",
+      "role": "passenger",
+      "startingBalance": 200,
+      "active": true
+    },
+    {
+      "uid": "5402BBA9",
+      "holderName": "Bhanu Prakash",
+      "email": "crazysky2201@gmail.com",
+      "role": "passenger",
+      "startingBalance": 10,
+      "active": true
+    },
+    {
+      "uid": "5B850B1A",
+      "holderName": "Kanthesh",
+      "email": "pp761254@gmail.com",
+      "role": "passenger",
+      "startingBalance": 200,
+      "active": true
+    },
+    {
+      "uid": "3D085006",
+      "holderName": "Shyamala",
+      "email": "skycrazy803@gmail.com",
+      "role": "passenger",
+      "startingBalance": 5,
+      "active": true
+    },
+    {
+      "uid": "21DB3E0A",
+      "holderName": "Prema",
+      "email": "gaganaprema22@gmail.com",
+      "role": "passenger",
+      "startingBalance": 5,
+      "active": true
+    }
+  ],
+  "admin": {
+    "name": "Gagana",
+    "email": "gaganacp2002@gmail.com",
+    "role": "admin"
+  }
+}

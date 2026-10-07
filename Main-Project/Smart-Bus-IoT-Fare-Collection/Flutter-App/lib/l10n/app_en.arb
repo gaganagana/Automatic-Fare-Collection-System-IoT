@@ -1,11 +1,10 @@
 {
   "@@locale": "en",
-
   "appTitle": "Smart Bus Control Room",
-  "@appTitle": {"description": "App title shown in the OS task switcher and browser tab"},
-
+  "@appTitle": {
+    "description": "App title shown in the OS task switcher and browser tab"
+  },
   "dashboardSubtitle": "IoT Fleet Dashboard / Bengaluru Route - Bus-01",
-
   "loginTitle": "Smart Bus - Control Room",
   "loginSubtitle": "Sign in as Admin/Operator or with your Passenger card login.",
   "emailLabel": "Email",
@@ -13,61 +12,196 @@
   "loginButton": "Login",
   "loginSuccessMessage": "Login successful — a confirmation email is on its way.",
   "registerPrompt": "New passenger? Register a card account",
-
   "statusLabel": "Status",
   "statusMoving": "Moving",
   "statusStopped": "Stopped",
   "onboardLabel": "Onboard",
   "enteredLabel": "Entered",
   "exitedLabel": "Exited",
+  "trafficLabel": "Traffic",
+  "trafficLow": "Low",
+  "trafficMedium": "Medium",
+  "trafficHigh": "High",
   "currentStopLabel": "Current Stop",
   "nextStopLabel": "Next Stop Announcement",
-
+  "currentRoute": "CURRENT ROUTE",
+  "activeTransit": "ACTIVE TRANSIT",
+  "routeSummary": "Kempegowda BS → BTM Layout (18 Stops)",
+  "fareRate": "Fare: ₹10 per stop",
+  "liveMapTitle": "LIVE BUS ROUTE MAP",
+  "speedKmh": "km/h",
   "startSimulator": "Start Simulator",
   "stopSimulator": "Stop Simulator",
   "simulateTap": "Simulate RFID Tap",
   "rechargeButton": "Recharge",
   "registerCard": "Register New RFID",
-
   "busStatusSemantic": "Bus status: {status}, speed {speed} kilometers per hour, currently at {stop}",
   "@busStatusSemantic": {
     "description": "Full sentence read aloud by TalkBack/screen readers for the bus status card",
     "placeholders": {
-      "status": {"type": "String"},
-      "speed": {"type": "String"},
-      "stop": {"type": "String"}
+      "status": {
+        "type": "String"
+      },
+      "speed": {
+        "type": "String"
+      },
+      "stop": {
+        "type": "String"
+      }
     }
   },
-
   "ttsBoarding": "{name} boarded at {stop}. Fare {amount} rupees deducted.",
   "@ttsBoarding": {
     "placeholders": {
-      "name": {"type": "String"},
-      "stop": {"type": "String"},
-      "amount": {"type": "String"}
+      "name": {
+        "type": "String"
+      },
+      "stop": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
     }
   },
   "ttsExit": "{name} exited at {stop}.",
   "@ttsExit": {
     "placeholders": {
-      "name": {"type": "String"},
-      "stop": {"type": "String"}
+      "name": {
+        "type": "String"
+      },
+      "stop": {
+        "type": "String"
+      }
     }
   },
   "ttsDenied": "Access denied. Insufficient balance.",
   "ttsApproachingStop": "Approaching {stop}.",
   "@ttsApproachingStop": {
     "placeholders": {
-      "stop": {"type": "String"}
+      "stop": {
+        "type": "String"
+      }
     }
   },
   "ttsRecharge": "Recharge successful. New balance {amount} rupees.",
   "@ttsRecharge": {
     "placeholders": {
-      "amount": {"type": "String"}
+      "amount": {
+        "type": "String"
+      }
     }
   },
-
   "languageLabel": "Language",
-  "ttsToggleLabel": "Voice announcements"
+  "ttsToggleLabel": "Voice announcements",
+  "controlRoomTitle": "SMART BUS - CONTROL ROOM",
+  "adminPortal": "Admin Dashboard",
+  "passengerPortal": "Passenger Portal",
+  "passengerManagement": "Passenger Management",
+  "noPassengers": "No passengers registered yet.",
+  "addPassenger": "Add Passenger",
+  "deletePassenger": "Delete passenger",
+  "confirmDeletePassenger": "Remove {name} from the Smart Bus system?",
+  "@confirmDeletePassenger": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "cancel": "Cancel",
+  "delete": "Delete",
+  "passengerName": "Passenger name",
+  "temporaryPassword": "Temporary password (min 6 characters)",
+  "registeredRfidUid": "Registered RFID UID",
+  "addPassengerButton": "ADD PASSENGER",
+  "passengerAdded": "Passenger added successfully.",
+  "mySmartCard": "MY SMART CARD",
+  "noCardLinked": "No card linked to this account.",
+  "currentlyOnboard": "Status: Currently onboard",
+  "notOnTrip": "Status: Not on a trip",
+  "rechargeMyCard": "RECHARGE MY CARD",
+  "myTripHistory": "MY TRIP HISTORY",
+  "noTransactions": "No transactions yet.",
+  "rechargeCardTitle": "Recharge Card",
+  "amountRupees": "Amount (₹)",
+  "payAndRecharge": "PAY & RECHARGE",
+  "rfidWallets": "RFID WALLETS",
+  "noRegisteredCards": "No registered RFID cards yet.",
+  "registerNewRfid": "REGISTER NEW RFID",
+  "registerNewRfidTitle": "Register New RFID Card",
+  "cardUidHex": "Card UID (Hex)",
+  "holderName": "Holder Name",
+  "addCard": "ADD CARD",
+  "noRealCards": "Register a real RFID card before adding a passenger.",
+  "cardActive": "ACTIVE",
+  "cardInactive": "INACTIVE",
+  "cardOnboard": "ONBOARD",
+  "searchPassenger": "Search passenger or UID...",
+  "noMatchFound": "No matching passenger or card found.",
+  "transactionsTitle": "RFID TRANSACTIONS & FARE AUDIT",
+  "colTime": "Time",
+  "colPassenger": "Passenger",
+  "colUid": "Card UID",
+  "colType": "Type",
+  "colStop": "Stop / Route",
+  "colAmount": "Amount",
+  "colBalance": "Balance",
+  "typeBoarding": "BOARDING",
+  "typeExit": "EXIT",
+  "typeRecharge": "RECHARGE",
+  "typeDenied": "DENIED",
+  "reasonLowBalance": "Low Balance",
+  "reasonDeactivated": "Deactivated Card",
+  "reasonInvalid": "Unregistered Card",
+  "passengerHistoryTitle": "PASSENGER JOURNEY AUDIT",
+  "aiAssistantTitle": "AI & ML ROUTE CHATBOT",
+  "aiAssistantSubtitle": "Ask about BMTC routes (600F, 500D, 335E, 365, 25A), timings, ₹10/stop fares & card info.",
+  "askHint": "Ask in Kannada, Hindi, or English (e.g. 600F route)...",
+  "voiceQuery": "Voice Query",
+  "listening": "Listening... Speak your query",
+  "quickPromptsTitle": "Quick Queries",
+  "promptNextStop": "Next stop",
+  "promptBalance": "My card balance",
+  "promptFare": "Fare to KR Circle",
+  "promptCardStatus": "My card status",
+  "promptRoute600F": "600F Route",
+  "promptRoute500D": "500D Route",
+  "promptRoute335E": "335E Route",
+  "promptRoute365": "365 Route",
+  "promptRoute25A": "25A Route",
+  "promptFareRule": "₹10 Fare Rule",
+  "clearChat": "Clear Chat",
+  "sendButton": "Send",
+  "speaking": "Speaking...",
+  "listenAudio": "Listen",
+  "routeTimelineTitle": "BENGALURU ROUTE STOPS (18 STOPS)",
+  "farePerStop": "₹10 / stop",
+  "profileTitle": "User Profile",
+  "settingsTitle": "System Settings",
+  "logoutButton": "Logout",
+  "roleLabel": "Role",
+  "emailAddress": "Email Address",
+  "linkedRfidCard": "Linked RFID Card",
+  "connected": "Connected",
+  "disconnected": "Disconnected",
+  "hardwareBridge": "NodeMCU Bridge",
+  "tapCardPrompt": "Tap your RFID card on the reader to board",
+  "searchPassengerUid": "Search passenger / RFID UID",
+  "noPassengerRecords": "No matching passenger records.",
+  "cardMustBeRegistered": "The RFID card must already be registered.",
+  "enterValidPassengerDetails": "Please enter valid passenger details and a registered RFID UID.",
+  "balanceLabel": "Balance",
+  "notLinked": "Not linked",
+  "signInTab": "Sign In",
+  "signUpTab": "Sign Up / Register",
+  "fullNameLabel": "Full Name",
+  "rfidUidLabel": "Smart Card UID (RFID)",
+  "rfidUidHelper": "e.g., 5B850B1A from your smart card",
+  "confirmPasswordLabel": "Confirm Password",
+  "registerButton": "Register Card & Account",
+  "passwordsDoNotMatch": "Passwords do not match.",
+  "registrationSuccess": "Account and smart card registered successfully!",
+  "alreadyHaveAccount": "Already have an account? Sign In",
+  "needAccountPrompt": "New passenger? Register your RFID card here"
 }

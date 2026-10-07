@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Smart Bus Transit System - Data Flow Diagrams (DFD)</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+      background-color: #0f172a;
+      color: #f8fafc;
+      margin: 0;
+      padding: 30px 20px;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    h1 {
+      color: #38bdf8;
+      font-size: 28px;
+      border-bottom: 2px solid #334155;
+      padding-bottom: 12px;
+      margin-bottom: 20px;
+    }
+    h2 {
+      color: #7dd3fc;
+      font-size: 20px;
+      margin-top: 35px;
+      margin-bottom: 12px;
+    }
+    .card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 30px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    }
+    .diagram-container {
+      background: #ffffff;
+      border-radius: 8px;
+      padding: 15px;
+      text-align: center;
+      overflow-x: auto;
+    }
+    .diagram-container svg {
+      max-width: 100%;
+      height: auto;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+      font-size: 13.5px;
+    }
+    th, td {
+      border: 1px solid #334155;
+      padding: 10px 14px;
+      text-align: left;
+    }
+    th {
+      background-color: #0f172a;
+      color: #38bdf8;
+      font-weight: 600;
+    }
+    tr:nth-child(even) {
+      background-color: #1e293b;
+    }
+    tr:nth-child(odd) {
+      background-color: #162032;
+    }
+    .badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: bold;
+    }
+    .badge-entity { background: #0284c7; color: white; }
+    .badge-proc { background: #0f766e; color: white; }
+    .badge-store { background: #b45309; color: white; }
+    .desc {
+      color: #94a3b8;
+      font-size: 13.5px;
+      line-height: 1.6;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🚌 Smart Bus Transit System — Data Flow Diagrams (DFD)</h1>
+    <p class="desc">Comprehensive Data Flow Diagrams (Level 0 Context Diagram, Level 1 Functional Decomposition, and Level 2 Process Decomposition) for the IoT-Based Smart Public Transit and Automated Ticketing System.</p>
+
+    <!-- SECTION 1: LEVEL 0 -->
+    <div class="card">
+      <h2>1. DFD Level 0 — Context Level Diagram</h2>
+      <p class="desc">Illustrates the overall system boundary, external entities (Passenger, Bus Hardware / IoT, Admin Operator, Cloud Database &amp; Payment Gateway), and the primary high-level data flows.</p>
+      <div class="diagram-container">
+        <!-- Embed SVG 0 -->
+        <object type="image/svg+xml" data="dfd_level_0.svg" style="width:100%; max-width:980px;"></object>
+      </div>
+      
+      <h3>Entities &amp; Flow Summary</h3>
+      <table>
+        <tr>
+          <th>Entity Name</th>
+          <th>Type</th>
+          <th>Data Inputs to System</th>
+          <th>Data Outputs from System</th>
+        </tr>
+        <tr>
+          <td><strong>👤 Passenger</strong></td>
+          <td><span class="badge badge-entity">External Entity</span></td>
+          <td>RFID Tag tap (UID), Login credentials, AI chat queries, Online wallet recharge requests</td>
+          <td>Servo Gate Access, 16x2 LCD display, DFPlayer Audio Announcement, SMS/Email receipts, App Live Map &amp; Balance</td>
+        </tr>
+        <tr>
+          <td><strong>🚌 Bus Hardware / IoT</strong></td>
+          <td><span class="badge badge-entity">External Entity</span></td>
+          <td>MFRC522 RFID Card UID (13.56 MHz), GPS Speed / Proximity telemetry (HTTP port 8080)</td>
+          <td>SG90 Servo PWM signal (0°/90°), I2C LCD character buffer, DFPlayer Mini track triggers (001.mp3–018.mp3)</td>
+        </tr>
+        <tr>
+          <td><strong>👨‍💼 Admin / Operator</strong></td>
+          <td><span class="badge badge-entity">External Entity</span></td>
+          <td>Card registration, Card block/unblock commands, NodeMCU IP config, Stop management</td>
+          <td>Live bus telemetry feed, Passenger load &amp; occupancy analytics, Financial revenue &amp; transaction audit trail</td>
+        </tr>
+        <tr>
+          <td><strong>☁️ Cloud / Payment Gateway</strong></td>
+          <td><span class="badge badge-entity">External Entity</span></td>
+          <td>Payment authorization webhook (Razorpay/UPI), Firebase real-time state</td>
+          <td>Wallet balance updates, Audit logs, Live telemetry packet sync</td>
+        </tr>
+      </table>
+    </div>
+
+    <!-- SECTION 2: LEVEL 1 -->
+    <div class="card">
+      <h2>2. DFD Level 1 — Functional Decomposition</h2>
+      <p class="desc">Decomposes the central system into 6 core functional processes, with 4 persistent data stores.</p>
+      <div class="diagram-container">
+        <object type="image/svg+xml" data="dfd_level_1.svg" style="width:100%; max-width:1100px;"></object>
+      </div>
+
+      <h3>Functional Processes Breakdown</h3>
+      <table>
+        <tr>
+          <th>Proc ID</th>
+          <th>Process Name</th>
+          <th>Inputs</th>
+          <th>Outputs</th>
+          <th>Associated Data Stores</th>
+        </tr>
+        <tr>
+          <td><strong>1.0</strong></td>
+          <td>RFID Card Read &amp; Authentication</td>
+          <td>Raw UID from RC522 SPI</td>
+          <td>Validated Card Profile, Active/Blocked flag</td>
+          <td><span class="badge badge-store">D1: RFID Wallet DB</span></td>
+        </tr>
+        <tr>
+          <td><strong>2.0</strong></td>
+          <td>Journey Tracking &amp; Fare Engine</td>
+          <td>Card Profile, Current Stop ID, Tap State</td>
+          <td>Computed Fare (₹10/stop), Gate Permit, Event Payload</td>
+          <td><span class="badge badge-store">D1: Wallet DB</span>, <span class="badge badge-store">D2: Stops DB</span>, <span class="badge badge-store">D3: Tx Logs</span></td>
+        </tr>
+        <tr>
+          <td><strong>3.0</strong></td>
+          <td>Gate Actuation &amp; Feedback</td>
+          <td>Gate Command, Stop Announcement Metadata</td>
+          <td>Servo 90° PWM Pulse, LCD Strings, DFPlayer Voice Track</td>
+          <td>None (Direct Actuation)</td>
+        </tr>
+        <tr>
+          <td><strong>4.0</strong></td>
+          <td>IoT Cloud Telemetry &amp; Sync</td>
+          <td>Live Transaction Packet, Bus Speed, Stop Index</td>
+          <td>HTTP JSON to Port 8080, Firebase Sync stream</td>
+          <td><span class="badge badge-store">D4: Telemetry State</span></td>
+        </tr>
+        <tr>
+          <td><strong>5.0</strong></td>
+          <td>Passenger App &amp; AI Assistant</td>
+          <td>User Prompts, Map Navigation, Balance Inquiries</td>
+          <td>Live Map UI, AI Route Plans, Instant Chatbot Replies</td>
+          <td><span class="badge badge-store">D1: Wallet DB</span>, <span class="badge badge-store">D2: Stops DB</span></td>
+        </tr>
+        <tr>
+          <td><strong>6.0</strong></td>
+          <td>Admin Management &amp; Billing</td>
+          <td>Card Issuance, Block requests, Razorpay Orders</td>
+          <td>Updated Wallets, Bank Confirmation, Revenue Metrics</td>
+          <td><span class="badge badge-store">D1: Wallet DB</span>, <span class="badge badge-store">D3: Tx Logs</span></td>
+        </tr>
+      </table>
+    </div>
+
+    <!-- SECTION 3: LEVEL 2 -->
+    <div class="card">
+      <h2>3. DFD Level 2 — Process 2.0 (Automated Fare &amp; Ticketing Engine)</h2>
+      <p class="desc">Detailed sub-process decomposition of the automatic stop-based fare deduction algorithm.</p>
+      <div class="diagram-container">
+        <object type="image/svg+xml" data="dfd_level_2_fare.svg" style="width:100%; max-width:980px;"></object>
+      </div>
+
+      <h3>Sub-Process Step-by-Step Logic</h3>
+      <table>
+        <tr>
+          <th>Sub-Proc</th>
+          <th>Name</th>
+          <th>Mathematical &amp; Logical Rule</th>
+        </tr>
+        <tr>
+          <td><strong>2.1</strong></td>
+          <td>Determine Tap Mode</td>
+          <td><code>if (wallet.onboard == false) => Entry Mode; else => Exit Mode;</code></td>
+        </tr>
+        <tr>
+          <td><strong>2.2</strong></td>
+          <td>Boarding Validation &amp; Tagging</td>
+          <td><code>if (balance >= 10.0 && active == true) { wallet.onboard = true; wallet.entryStop = currentStop.id; openDoor(); } else { denyEntry(); }</code></td>
+        </tr>
+        <tr>
+          <td><strong>2.3</strong></td>
+          <td>Retrieve Journey Indices</td>
+          <td>Lookup index of <code>entryStop</code> and <code>exitStop</code> in Route 25A 18-stop array.</td>
+        </tr>
+        <tr>
+          <td><strong>2.4</strong></td>
+          <td>Compute Flat Fare</td>
+          <td><code>stopsCount = max(1, |exitIndex - entryIndex|);<br>fareAmount = stopsCount * 10.0;</code></td>
+        </tr>
+        <tr>
+          <td><strong>2.5</strong></td>
+          <td>Debit Balance &amp; Reset</td>
+          <td><code>wallet.balance = wallet.balance - fareAmount;<br>wallet.onboard = false;<br>wallet.recentExit = currentStop.id;</code></td>
+        </tr>
+        <tr>
+          <td><strong>2.6</strong></td>
+          <td>Generate Audit Record</td>
+          <td>Create immutable <code>FareTransaction</code> entry in Firebase and local transaction feed.</td>
+        </tr>
+      </table>
+    </div>
+
+  </div>
+</body>
+</html>

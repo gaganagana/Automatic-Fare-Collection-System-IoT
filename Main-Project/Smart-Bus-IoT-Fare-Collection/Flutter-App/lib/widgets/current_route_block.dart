@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../l10n/generated/app_localizations.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 
@@ -10,6 +11,8 @@ class CurrentRouteBlock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final app = context.watch<AppState>();
+    final l10n = AppLocalizations.of(context);
+
     return Row(
       children: [
         Expanded(
@@ -19,16 +22,26 @@ class CurrentRouteBlock extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('CURRENT STOP',
-                    style: TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 1.2)),
+                Text(
+                  l10n.currentStopLabel.toUpperCase(),
+                  style: const TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 1.2,
+                  ),
+                ),
                 const SizedBox(height: 6),
-                Text('${app.currentStop.name} [${app.currentStop.id}]',
-                    style: const TextStyle(
-                        color: AppColors.green, fontSize: 15, fontWeight: FontWeight.bold)),
+                Text(
+                  app.currentStopDisplay == '—'
+                      ? '—'
+                      : '${app.localizedStopName(app.currentStop.name)} [${app.currentStop.id}]',
+                  style: const TextStyle(
+                    color: AppColors.green,
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ],
             ),
           ),
@@ -41,16 +54,26 @@ class CurrentRouteBlock extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('NEXT STOP ANNOUNCEMENT',
-                    style: TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 1.2)),
+                Text(
+                  l10n.nextStopLabel.toUpperCase(),
+                  style: const TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 1.2,
+                  ),
+                ),
                 const SizedBox(height: 6),
-                Text('${app.nextStop.name}  |  Audio track ${app.nextStop.audioTrack}',
-                    style: const TextStyle(
-                        color: AppColors.blue, fontSize: 15, fontWeight: FontWeight.bold)),
+                Text(
+                  app.nextStopDisplay == '—'
+                      ? '—'
+                      : '${app.localizedStopName(app.nextStop.name)}  |  ${app.nextStop.id}',
+                  style: const TextStyle(
+                    color: AppColors.blue,
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ],
             ),
           ),

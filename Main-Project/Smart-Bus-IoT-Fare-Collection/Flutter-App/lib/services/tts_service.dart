@@ -1,61 +1,32 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter_tts/flutter_tts.dart';
 
-/// Thin wrapper around `flutter_tts` so the rest of the app never touches
-/// the plugin directly. Import this one class wherever you need to speak
-/// something out loud (stop announcements, fare alerts, denied taps).
+/// Lightweight no-op stand-in for text-to-speech.
 ///
-/// Usage:
-///   final tts = TtsService();
-///   await tts.setLanguage('kn-IN');   // or 'en-IN'
-///   await tts.speak('Approaching KR Circle');
+/// The real flutter_tts plugin was removed — as of this build, it (along
+/// with google_maps_flutter) triggers a known, unresolved Kotlin/Gradle
+/// build-tool bug on Windows ("Could not close incremental caches" /
+/// flutter/flutter#173456), which has nothing to do with this project's
+/// code and can't be fixed from the Dart side. Removing the plugin keeps
+/// the app light and reliably buildable.
+///
+/// This class keeps the exact same method signatures AppState already
+/// calls (speak, setLanguage, stop, dispose, enabled), so nothing else in
+/// the app needs to change — voice announcements are just silently
+/// skipped instead of spoken. If you want real TTS back later, re-add
+/// flutter_tts to pubspec.yaml and restore the implementation that calls
+/// FlutterTts() here — everything that calls this class stays unchanged.
 class TtsService {
-  final FlutterTts _flutterTts = FlutterTts();
-  bool _initialized = false;
-  bool enabled = true; // lets the UI mute announcements without disposing the engine
+  bool enabled = true;
 
-  /// Maps the app's Locale codes to the BCP-47 language tags flutter_tts
-  /// expects. Kannada TTS voice availability depends on the device — most
-  /// modern Android phones have it via Google's TTS engine (Settings ->
-  /// System -> Languages -> Text-to-speech -> install Kannada voice data
-  /// if it's missing). iOS Kannada support varies by device/OS version.
-  static const Map<String, String> _localeToTtsLanguage = {
-    'en': 'en-IN',
-    'kn': 'kn-IN',
-  };
-
-  Future<void> _ensureInit() async {
-    if (_initialized) return;
-    await _flutterTts.setSpeechRate(0.48); // slightly slower than default — clearer for transit announcements
-    await _flutterTts.setPitch(1.0);
-    await _flutterTts.setVolume(1.0);
-    _initialized = true;
-  }
-
-  /// Switches the TTS engine's voice/language. Call this whenever the
-  /// app's locale changes (see AppState.setLocale).
   Future<void> setLanguage(String localeCode) async {
-    await _ensureInit();
-    final ttsLang = _localeToTtsLanguage[localeCode] ?? 'en-IN';
-    try {
-      await _flutterTts.setLanguage(ttsLang);
-    } catch (e) {
-      debugPrint('TtsService: language "$ttsLang" not available on this device — $e');
-    }
+    debugPrint('TtsService (stub): language set to $localeCode — no plugin installed, nothing spoken.');
   }
 
-  /// Speaks [text] aloud. No-ops silently if TTS has been muted via
-  /// [enabled], so callers don't need to check that flag everywhere.
   Future<void> speak(String text) async {
-    if (!enabled || text.trim().isEmpty) return;
-    await _ensureInit();
-    await _flutterTts.stop(); // cut off whatever was mid-sentence so announcements don't queue up and lag behind real events
-    await _flutterTts.speak(text);
+    debugPrint('TtsService (stub): would have said "$text"');
   }
 
-  Future<void> stop() => _flutterTts.stop();
+  Future<void> stop() async {}
 
-  void dispose() {
-    _flutterTts.stop();
-  }
+  void dispose() {}
 }
